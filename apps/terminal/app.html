@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terminal</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Monaco', 'Courier New', monospace;
+      background: #0a0a0f;
+      color: #00ff00;
+      padding: 20px;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #output {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .terminal-line {
+      margin-bottom: 4px;
+    }
+
+    .prompt {
+      color: #667eea;
+      font-weight: bold;
+    }
+
+    .error {
+      color: #ff5555;
+    }
+
+    .success {
+      color: #70d6a3;
+    }
+
+    .info {
+      color: #9090a8;
+    }
+
+    #input-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.02);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    #input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #00ff00;
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background: #00ff00;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 255, 0, 0.3);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="output"></div>
+  <div id="input-container">
+    <span class="prompt">nexus@browser:~$</span>
+    <input type="text" id="input" autofocus>
+  </div>
+
+  <script>
+    class Terminal {
+      constructor() {
+        this.output = document.getElementById('output');
+        this.input = document.getElementById('input');
+        this.currentPath = '/';
+        this.history = [];
+        this.historyIndex = -1;
+        this.fs = null;
+        
+        this.init();
+      }
+
+      async init() {
+        // Get filesystem from parent
+        if (window.parent && window.parent.BrowserOS) {
+          this.fs = window.parent.BrowserOS.filesystem;
+        }
+
+        // Welcome message
+        this.print('<span class="success">╔═══════════════════════════════════════╗</span>');
+        this.print('<span class="success">║    NEXUS Browser OS Terminal v1.0    ║</span>');
+        this.print('<span class="success">╚═══════════════════════════════════════╝</span>');
+        this.print('');
+        this.print('<span class="info">Tapez "help" pour la liste des commandes</span>');
+        this.print('');
+
+        // Setup input handlers
+        this.input.addEventListener('keydown', (e) => this.handleKeydown(e));
+      }
+
+      async handleKeydown(e) {
+        if (e.key === 'Enter') {
+          const command = this.input.value.trim();
+          
+          if (command) {
+            this.history.push(command);
+            this.historyIndex = this.history.length;
+            
+            this.print(`<span class="prompt">nexus@browser:${this.currentPath}$</span> ${command}`);
+            await this.executeCommand(command);
+          } else {
+            this.print(`<span class="prompt">nexus@browser:${this.currentPath}$</span>`);
+          }
+          
+          this.input.value = '';
+          this.scrollToBottom();
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (this.historyIndex > 0) {
+            this.historyIndex--;
+            this.input.value = this.history[this.historyIndex];
+          }
+        } else if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (this.historyIndex < this.history.length - 1) {
+            this.historyIndex++;
+            this.input.value = this.history[this.historyIndex];
+          } else {
+            this.historyIndex = this.history.length;
+            this.input.value = '';
+          }
+        } else if (e.key === 'Tab') {
+          e.preventDefault();
+          // TODO: Autocomplete
+        }
+      }
+
+      async executeCommand(commandLine) {
+        const parts = commandLine.split(' ');
+        const command = parts[0];
+        const args = parts.slice(1);
+
+        try {
+          switch (command) {
+            case 'help':
+              this.showHelp();
+              break;
+            
+            case 'clear':
+              this.output.innerHTML = '';
+              break;
+            
+            case 'ls':
+              await this.listDirectory(args[0] || this.currentPath);
+              break;
+            
+            case 'cd':
+              await this.changeDirectory(args[0] || '/');
+              break;
+            
+            case 'pwd':
+              this.print(this.currentPath);
+              break;
+            
+            case 'mkdir':
+              await this.makeDirectory(args[0]);
+              break;
+            
+            case 'rm':
+              await this.removeFile(args[0]);
+              break;
+            
+            case 'cat':
+              await this.readFile(args[0]);
+              break;
+            
+            case 'echo':
+              this.print(args.join(' '));
+              break;
+            
+            case 'date':
+              this.print(new Date().toString());
+              break;
+            
+            case 'whoami':
+              this.print('nexus-user');
+              break;
+            
+            case 'uname':
+              this.print('NEXUS Browser OS 1.0.0');
+              break;
+            
+            case 'sysinfo':
+              await this.showSystemInfo();
+              break;
+            
+            case 'ps':
+              this.showProcesses();
+              break;
+            
+            default:
+              this.print(`<span class="error">Command not found: ${command}</span>`);
+              this.print(`<span class="info">Type "help" for available commands</span>`);
+          }
+        } catch (error) {
+          this.print(`<span class="error">Error: ${error.message}</span>`);
+        }
+      }
+
+      showHelp() {
+        const commands = {
+          'help': 'Afficher cette aide',
+          'clear': 'Effacer l\'écran',
+          'ls [path]': 'Lister les fichiers',
+          'cd <path>': 'Changer de répertoire',
+          'pwd': 'Afficher le répertoire courant',
+          'mkdir <name>': 'Créer un dossier',
+          'rm <file>': 'Supprimer un fichier',
+          'cat <file>': 'Afficher le contenu d\'un fichier',
+          'echo <text>': 'Afficher un texte',
+          'date': 'Afficher la date',
+          'whoami': 'Nom d\'utilisateur',
+          'uname': 'Information système',
+          'sysinfo': 'Informations détaillées',
+          'ps': 'Processus en cours'
+        };
+
+        this.print('<span class="success">Commandes disponibles:</span>');
+        this.print('');
+        
+        for (const [cmd, desc] of Object.entries(commands)) {
+          this.print(`  <span class="success">${cmd.padEnd(20)}</span> ${desc}`);
+        }
+        
+        this.print('');
+      }
+
+      async listDirectory(path) {
+        if (!this.fs) {
+          this.print('<span class="error">Filesystem not available</span>');
+          return;
+        }
+
+        try {
+          const files = await this.fs.readdir(path || this.currentPath);
+          
+          if (files.length === 0) {
+            this.print('<span class="info">Empty directory</span>');
+            return;
+          }
+
+          files.forEach(file => {
+            const icon = file.type === 'directory' ? '📁' : '📄';
+            const size = file.size ? ` (${this.formatSize(file.size)})` : '';
+            const color = file.type === 'directory' ? 'style="color: #667eea;"' : '';
+            this.print(`${icon} <span ${color}>${file.name}</span>${size}`);
+          });
+        } catch (error) {
+          this.print(`<span class="error">ls: ${error.message}</span>`);
+        }
+      }
+
+      async changeDirectory(path) {
+        if (!this.fs) {
+          this.print('<span class="error">Filesystem not available</span>');
+          return;
+        }
+
+        let newPath;
+        
+        if (path === '..') {
+          const parts = this.currentPath.split('/').filter(p => p);
+          parts.pop();
+          newPath = '/' + parts.join('/');
+        } else if (path.startsWith('/')) {
+          newPath = path;
+        } else {
+          newPath = this.currentPath === '/' 
+            ? '/' + path 
+            : this.currentPath + '/' + path;
+        }
+
+        try {
+          const stat = await this.fs.stat(newPath);
+          
+          if (stat.type !== 'directory') {
+            this.print(`<span class="error">cd: not a directory: ${path}</span>`);
+            return;
+          }
+
+          this.currentPath = newPath;
+        } catch (error) {
+          this.print(`<span class="error">cd: ${error.message}</span>`);
+        }
+      }
+
+      async makeDirectory(name) {
+        if (!this.fs) {
+          this.print('<span class="error">Filesystem not available</span>');
+          return;
+        }
+
+        if (!name) {
+          this.print('<span class="error">mkdir: missing operand</span>');
+          return;
+        }
+
+        const path = this.currentPath === '/' 
+          ? '/' + name 
+          : this.currentPath + '/' + name;
+
+        try {
+          await this.fs.mkdir(path);
+          this.print(`<span class="success">Directory created: ${name}</span>`);
+        } catch (error) {
+          this.print(`<span class="error">mkdir: ${error.message}</span>`);
+        }
+      }
+
+      async removeFile(name) {
+        if (!this.fs) {
+          this.print('<span class="error">Filesystem not available</span>');
+          return;
+        }
+
+        if (!name) {
+          this.print('<span class="error">rm: missing operand</span>');
+          return;
+        }
+
+        const path = this.currentPath === '/' 
+          ? '/' + name 
+          : this.currentPath + '/' + name;
+
+        try {
+          await this.fs.unlink(path);
+          this.print(`<span class="success">Removed: ${name}</span>`);
+        } catch (error) {
+          this.print(`<span class="error">rm: ${error.message}</span>`);
+        }
+      }
+
+      async readFile(name) {
+        if (!this.fs) {
+          this.print('<span class="error">Filesystem not available</span>');
+          return;
+        }
+
+        if (!name) {
+          this.print('<span class="error">cat: missing operand</span>');
+          return;
+        }
+
+        const path = this.currentPath === '/' 
+          ? '/' + name 
+          : this.currentPath + '/' + name;
+
+        try {
+          const content = await this.fs.readFile(path);
+          this.print(content);
+        } catch (error) {
+          this.print(`<span class="error">cat: ${error.message}</span>`);
+        }
+      }
+
+      async showSystemInfo() {
+        if (!window.parent || !window.parent.BrowserOS) {
+          this.print('<span class="error">System info not available</span>');
+          return;
+        }
+
+        const sys = window.parent.BrowserOS.getSystemInfo();
+        const cpu = window.parent.BrowserOS.cpuManager.getStats();
+
+        this.print('<span class="success">═══ SYSTEM INFORMATION ═══</span>');
+        this.print(`OS Version: NEXUS ${sys.version}`);
+        this.print(`Uptime: ${Math.floor(sys.uptime / 1000)}s`);
+        this.print(`Processes: ${sys.processes}`);
+        this.print(`CPU Cores: ${sys.cpuCores}`);
+        this.print(`Tasks Completed: ${cpu.tasksCompleted}`);
+        this.print(`Apps Installed: ${sys.apps}`);
+        this.print('');
+      }
+
+      showProcesses() {
+        if (!window.parent || !window.parent.BrowserOS) {
+          this.print('<span class="error">Process info not available</span>');
+          return;
+        }
+
+        const processes = Array.from(window.parent.BrowserOS.processes.values());
+
+        this.print('<span class="success">PID   NAME                STATE</span>');
+        processes.forEach(proc => {
+          const pid = String(proc.pid).padEnd(6);
+          const name = proc.name.padEnd(20);
+          const state = proc.state;
+          this.print(`${pid}${name}${state}`);
+        });
+      }
+
+      formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+      }
+
+      print(text) {
+        const line = document.createElement('div');
+        line.className = 'terminal-line';
+        line.innerHTML = text;
+        this.output.appendChild(line);
+      }
+
+      scrollToBottom() {
+        this.output.scrollTop = this.output.scrollHeight;
+      }
+    }
+
+    // Initialize terminal
+    const terminal = new Terminal();
+
+    // Keep input focused
+    document.addEventListener('click', () => {
+      document.getElementById('input').focus();
+    });
+  </script>
+</body>
+</html>
