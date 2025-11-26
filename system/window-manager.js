@@ -1,4 +1,4 @@
-// system/window-manager.js - Window Management System
+// system/window-manager-v2.js - Complete Window Management System
 
 export class WindowManager {
   constructor() {
@@ -6,10 +6,11 @@ export class WindowManager {
     this.nextWindowId = 1;
     this.zIndexCounter = 1000;
     this.container = null;
+    this.minimizedWindows = new Set();
     
     console.log('[WindowManager] Initialized');
   }
-  
+
   async createWindow(options) {
     const {
       title = 'Window',
@@ -17,9 +18,12 @@ export class WindowManager {
       width = 800,
       height = 600,
       url = '',
+      appId = '',
       x = null,
       y = null,
-      onClose = null
+      onClose = null,
+      onMinimize = null,
+      onMaximize = null
     } = options;
     
     const windowId = this.nextWindowId++;
@@ -28,6 +32,7 @@ export class WindowManager {
     const windowEl = document.createElement('div');
     windowEl.className = 'nexus-window';
     windowEl.dataset.windowId = windowId;
+    windowEl.dataset.appId = appId;
     windowEl.style.cssText = `
       position: absolute;
       width: ${width}px;
@@ -43,6 +48,7 @@ export class WindowManager {
       flex-direction: column;
       z-index: ${this.zIndexCounter++};
       pointer-events: all;
+      transition: transform 0.3s ease, opacity 0.3s ease;
     `;
     
     // Window header
@@ -75,15 +81,24 @@ export class WindowManager {
     `;
     
     const controls = document.createElement('div');
+    controls.className = 'nexus-window-controls';
     controls.style.cssText = `
       display: flex;
       gap: 8px;
     `;
     
-    // Window controls
-    const minimizeBtn = this.createControlButton('#ffbd2e', () => this.minimize(windowId));
-    const maximizeBtn = this.createControlButton('#27c93f', () => this.toggleMaximize(windowId));
-    const closeBtn = this.createControlButton('#ff5f56', () => {
+    // Create control buttons with proper event handlers
+    const minimizeBtn = this.createControlButton('#ffbd2e', 'Minimize', () => {
+      this.minimize(windowId);
+      if (onMinimize) onMinimize();
+    });
+    
+    const maximizeBtn = this.createControlButton('#27c93f', 'Maximize/Restore', () => {
+      this.toggleMaximize(windowId);
+      if (onMaximize) onMaximize();
+    });
+    
+    const closeBtn = this.createControlButton('#ff5f56', 'Close', () => {
       this.closeWindow(windowId);
       if (onClose) onClose();
     });
@@ -114,6 +129,12 @@ export class WindowManager {
         border: none;
         background: transparent;
       `;
+      
+      // Setup communication with iframe
+      iframe.onload = () => {
+        console.log(`[WindowManager] App loaded in window ${windowId}`);
+      };
+      
       content.appendChild(iframe);
     }
     
@@ -133,37 +154,86 @@ export class WindowManager {
     this.makeResizable(windowEl);
     
     // Focus on click
-    windowEl.addEventListener('mousedown', () => this.focus(windowId));
+    windowEl.addEventListener('mousedown', (e) => {
+      // Don't focus if clicking on controls
+      if (!e.target.closest('.nexus-window-controls')) {
+        this.focus(windowId);
+      }
+    });
+    
+    // Double-click header to maximize
+    header.addEventListener('dblclick', (e) => {
+      if (!e.target.closest('.nexus-window-controls')) {
+        this.toggleMaximize(windowId);
+      }
+    });
     
     // Store window data
     this.windows.set(windowId, {
       id: windowId,
+      appId,
       element: windowEl,
+      iframe: content.querySelector('iframe'),
       title,
       icon,
       state: 'normal',
-      originalBounds: { x: windowEl.offsetLeft, y: windowEl.offsetTop, width, height }
+      originalBounds: { 
+        x: windowEl.offsetLeft, 
+        y: windowEl.offsetTop, 
+        width, 
+        height 
+      }
     });
     
-    console.log('[WindowManager] Created window', windowId);
+    // Animate entrance
+    windowEl.style.transform = 'scale(0.9)';
+    windowEl.style.opacity = '0';
+    
+    setTimeout(() => {
+      windowEl.style.transform = 'scale(1)';
+      windowEl.style.opacity = '1';
+    }, 10);
+    
+    console.log('[WindowManager] Created window', windowId, 'for app', appId);
     
     return windowId;
   }
   
-  createControlButton(color, onClick) {
+  createControlButton(color, title, onClick) {
     const btn = document.createElement('div');
+    btn.title = title;
     btn.style.cssText = `
       width: 12px;
       height: 12px;
       border-radius: 50%;
       background: ${color};
       cursor: pointer;
-      transition: opacity 0.2s;
+      transition: all 0.2s;
+      position: relative;
     `;
     
-    btn.addEventListener('mouseenter', () => btn.style.opacity = '0.7');
-    btn.addEventListener('mouseleave', () => btn.style.opacity = '1');
-    btn.addEventListener('click', onClick);
+    // Hover effect
+    btn.addEventListener('mouseenter', () => {
+      btn.style.opacity = '0.7';
+      btn.style.transform = 'scale(1.1)';
+    });
+    
+    btn.addEventListener('mouseleave', () => {
+      btn.style.opacity = '1';
+      btn.style.transform = 'scale(1)';
+    });
+    
+    // Click handler - IMPORTANT: stopPropagation to prevent drag
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      onClick();
+    });
+    
+    // Prevent mousedown from triggering drag
+    btn.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+    });
     
     return btn;
   }
@@ -173,17 +243,26 @@ export class WindowManager {
     let currentX, currentY, initialX, initialY;
     
     handle.addEventListener('mousedown', (e) => {
-      if (e.target.closest('.nexus-window-controls')) return;
+      // Don't drag if clicking on controls
+      if (e.target.closest('.nexus-window-controls')) {
+        return;
+      }
       
       isDragging = true;
       initialX = e.clientX - windowEl.offsetLeft;
       initialY = e.clientY - windowEl.offsetTop;
       
+      // Focus window when starting drag
+      const windowId = parseInt(windowEl.dataset.windowId);
+      this.focus(windowId);
+      
       document.addEventListener('mousemove', drag);
       document.addEventListener('mouseup', stopDrag);
+      
+      e.preventDefault();
     });
     
-    function drag(e) {
+    const drag = (e) => {
       if (!isDragging) return;
       
       e.preventDefault();
@@ -191,65 +270,108 @@ export class WindowManager {
       currentY = e.clientY - initialY;
       
       // Keep window in bounds
-      currentX = Math.max(0, Math.min(currentX, window.innerWidth - windowEl.offsetWidth));
-      currentY = Math.max(0, Math.min(currentY, window.innerHeight - 60 - windowEl.offsetHeight));
+      const maxX = window.innerWidth - windowEl.offsetWidth;
+      const maxY = window.innerHeight - 60 - windowEl.offsetHeight;
+      
+      currentX = Math.max(0, Math.min(currentX, maxX));
+      currentY = Math.max(0, Math.min(currentY, maxY));
       
       windowEl.style.left = currentX + 'px';
       windowEl.style.top = currentY + 'px';
-    }
+    };
     
-    function stopDrag() {
+    const stopDrag = () => {
       isDragging = false;
       document.removeEventListener('mousemove', drag);
       document.removeEventListener('mouseup', stopDrag);
-    }
+    };
   }
   
   makeResizable(windowEl) {
-    const resizeHandle = document.createElement('div');
-    resizeHandle.style.cssText = `
-      position: absolute;
-      bottom: 0;
-      right: 0;
-      width: 20px;
-      height: 20px;
-      cursor: nwse-resize;
-      z-index: 10;
-    `;
+    const corners = ['se', 'sw', 'ne', 'nw'];
+    const edges = ['s', 'e', 'w', 'n'];
     
-    windowEl.appendChild(resizeHandle);
-    
-    let isResizing = false;
-    let startX, startY, startWidth, startHeight;
-    
-    resizeHandle.addEventListener('mousedown', (e) => {
-      isResizing = true;
-      startX = e.clientX;
-      startY = e.clientY;
-      startWidth = windowEl.offsetWidth;
-      startHeight = windowEl.offsetHeight;
+    // Create resize handles
+    [...corners, ...edges].forEach(position => {
+      const handle = document.createElement('div');
+      handle.className = `resize-handle resize-${position}`;
       
-      document.addEventListener('mousemove', resize);
-      document.addEventListener('mouseup', stopResize);
+      const styles = {
+        se: { bottom: 0, right: 0, cursor: 'nwse-resize', width: '20px', height: '20px' },
+        sw: { bottom: 0, left: 0, cursor: 'nesw-resize', width: '20px', height: '20px' },
+        ne: { top: 0, right: 0, cursor: 'nesw-resize', width: '20px', height: '20px' },
+        nw: { top: 0, left: 0, cursor: 'nwse-resize', width: '20px', height: '20px' },
+        s: { bottom: 0, left: 0, right: 0, cursor: 'ns-resize', height: '5px' },
+        n: { top: 0, left: 0, right: 0, cursor: 'ns-resize', height: '5px' },
+        e: { top: 0, right: 0, bottom: 0, cursor: 'ew-resize', width: '5px' },
+        w: { top: 0, left: 0, bottom: 0, cursor: 'ew-resize', width: '5px' }
+      };
       
-      e.preventDefault();
+      handle.style.cssText = `
+        position: absolute;
+        ${Object.entries(styles[position]).map(([k, v]) => `${k}: ${v}`).join('; ')};
+        z-index: 10;
+      `;
+      
+      let isResizing = false;
+      let startX, startY, startWidth, startHeight, startLeft, startTop;
+      
+      handle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startWidth = windowEl.offsetWidth;
+        startHeight = windowEl.offsetHeight;
+        startLeft = windowEl.offsetLeft;
+        startTop = windowEl.offsetTop;
+        
+        document.addEventListener('mousemove', resize);
+        document.addEventListener('mouseup', stopResize);
+        
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      
+      const resize = (e) => {
+        if (!isResizing) return;
+        
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        
+        let newWidth = startWidth;
+        let newHeight = startHeight;
+        let newLeft = startLeft;
+        let newTop = startTop;
+        
+        if (position.includes('e')) {
+          newWidth = Math.max(400, startWidth + deltaX);
+        }
+        if (position.includes('w')) {
+          newWidth = Math.max(400, startWidth - deltaX);
+          newLeft = startLeft + deltaX;
+        }
+        if (position.includes('s')) {
+          newHeight = Math.max(300, startHeight + deltaY);
+        }
+        if (position.includes('n')) {
+          newHeight = Math.max(300, startHeight - deltaY);
+          newTop = startTop + deltaY;
+        }
+        
+        windowEl.style.width = newWidth + 'px';
+        windowEl.style.height = newHeight + 'px';
+        windowEl.style.left = newLeft + 'px';
+        windowEl.style.top = newTop + 'px';
+      };
+      
+      const stopResize = () => {
+        isResizing = false;
+        document.removeEventListener('mousemove', resize);
+        document.removeEventListener('mouseup', stopResize);
+      };
+      
+      windowEl.appendChild(handle);
     });
-    
-    function resize(e) {
-      if (!isResizing) return;
-      
-      const width = startWidth + (e.clientX - startX);
-      const height = startHeight + (e.clientY - startY);
-      
-      windowEl.style.width = Math.max(400, width) + 'px';
-      windowEl.style.height = Math.max(300, height) + 'px';
-    }
-    
-    function stopResize() {
-      isResizing = false;
-      document.removeEventListener('mousemove', resize);
-      document.removeEventListener('mouseup', stopResize);
-    }
   }
   
   focus(windowId) {
@@ -257,26 +379,61 @@ export class WindowManager {
     if (!window) return;
     
     window.element.style.zIndex = this.zIndexCounter++;
+    
+    // Update taskbar active state
+    document.querySelectorAll('.taskbar-app').forEach(app => {
+      if (parseInt(app.dataset.windowId) === windowId) {
+        app.classList.add('active');
+      } else {
+        app.classList.remove('active');
+      }
+    });
   }
   
   closeWindow(windowId) {
     const window = this.windows.get(windowId);
     if (!window) return;
     
-    window.element.remove();
-    this.windows.delete(windowId);
+    // Animate exit
+    window.element.style.transform = 'scale(0.9)';
+    window.element.style.opacity = '0';
     
-    console.log('[WindowManager] Closed window', windowId);
+    setTimeout(() => {
+      window.element.remove();
+      this.windows.delete(windowId);
+      this.minimizedWindows.delete(windowId);
+      
+      // Remove from taskbar
+      const taskbarApp = document.querySelector(`[data-window-id="${windowId}"]`);
+      if (taskbarApp) {
+        taskbarApp.remove();
+      }
+      
+      console.log('[WindowManager] Closed window', windowId);
+    }, 300);
   }
   
   minimize(windowId) {
     const window = this.windows.get(windowId);
     if (!window) return;
     
-    window.element.style.display = 'none';
-    window.state = 'minimized';
+    // Animate to taskbar
+    const taskbarApp = document.querySelector(`[data-window-id="${windowId}"]`);
+    if (taskbarApp) {
+      const rect = taskbarApp.getBoundingClientRect();
+      const windowRect = window.element.getBoundingClientRect();
+      
+      window.element.style.transform = `scale(0.1) translate(${rect.left - windowRect.left}px, ${rect.top - windowRect.top}px)`;
+      window.element.style.opacity = '0';
+    }
     
-    console.log('[WindowManager] Minimized window', windowId);
+    setTimeout(() => {
+      window.element.style.display = 'none';
+      window.state = 'minimized';
+      this.minimizedWindows.add(windowId);
+      
+      console.log('[WindowManager] Minimized window', windowId);
+    }, 300);
   }
   
   restore(windowId) {
@@ -285,7 +442,14 @@ export class WindowManager {
     
     window.element.style.display = 'flex';
     window.state = 'normal';
-    this.focus(windowId);
+    this.minimizedWindows.delete(windowId);
+    
+    // Reset transform
+    setTimeout(() => {
+      window.element.style.transform = 'scale(1)';
+      window.element.style.opacity = '1';
+      this.focus(windowId);
+    }, 10);
     
     console.log('[WindowManager] Restored window', windowId);
   }
@@ -301,6 +465,7 @@ export class WindowManager {
       window.element.style.top = bounds.y + 'px';
       window.element.style.width = bounds.width + 'px';
       window.element.style.height = bounds.height + 'px';
+      window.element.style.borderRadius = '12px';
       window.state = 'normal';
     } else {
       // Maximize
@@ -315,6 +480,7 @@ export class WindowManager {
       window.element.style.top = '0';
       window.element.style.width = '100%';
       window.element.style.height = 'calc(100vh - 60px)';
+      window.element.style.borderRadius = '0';
       window.state = 'maximized';
     }
     
@@ -327,5 +493,17 @@ export class WindowManager {
   
   getAllWindows() {
     return Array.from(this.windows.values());
+  }
+  
+  getWindowState() {
+    return Array.from(this.windows.values()).map(w => ({
+      id: w.id,
+      appId: w.appId,
+      x: w.element.offsetLeft,
+      y: w.element.offsetTop,
+      width: w.element.offsetWidth,
+      height: w.element.offsetHeight,
+      state: w.state
+    }));
   }
 }
