@@ -41,6 +41,7 @@
       color: #9090a8;
       min-height: 20px;
       margin-bottom: 8px;
+      word-wrap: break-word;
     }
 
     .result {
@@ -48,6 +49,7 @@
       font-weight: 600;
       color: #667eea;
       word-wrap: break-word;
+      min-height: 50px;
     }
 
     .buttons {
@@ -66,6 +68,7 @@
       color: #e8e8f0;
       cursor: pointer;
       transition: all 0.2s;
+      user-select: none;
     }
 
     button:hover {
@@ -75,6 +78,7 @@
 
     button:active {
       transform: translateY(0);
+      background: rgba(255, 255, 255, 0.15);
     }
 
     button.operator {
@@ -130,6 +134,12 @@
       font-size: 13px;
       padding: 5px 0;
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .history-item:hover {
+      background: rgba(255, 255, 255, 0.05);
     }
 
     .history-item:last-child {
@@ -154,37 +164,37 @@
 <body>
   <div class="calculator">
     <div class="display">
-      <div class="expression" id="expression"></div>
+      <div class="expression" id="expression">&nbsp;</div>
       <div class="result" id="result">0</div>
     </div>
 
     <div class="buttons">
-      <button class="clear" onclick="calc.clear()">C</button>
-      <button class="operator" onclick="calc.input('(')">(</button>
-      <button class="operator" onclick="calc.input(')')">)</button>
+      <button class="clear">C</button>
+      <button class="operator">(</button>
+      <button class="operator">)</button>
+      <button class="operator">÷</button>
       
-      <button onclick="calc.input('7')">7</button>
-      <button onclick="calc.input('8')">8</button>
-      <button onclick="calc.input('9')">9</button>
-      <button class="operator" onclick="calc.input('/')">÷</button>
+      <button>7</button>
+      <button>8</button>
+      <button>9</button>
+      <button class="operator">×</button>
       
-      <button onclick="calc.input('4')">4</button>
-      <button onclick="calc.input('5')">5</button>
-      <button onclick="calc.input('6')">6</button>
-      <button class="operator" onclick="calc.input('*')">×</button>
+      <button>4</button>
+      <button>5</button>
+      <button>6</button>
+      <button class="operator">−</button>
       
-      <button onclick="calc.input('1')">1</button>
-      <button onclick="calc.input('2')">2</button>
-      <button onclick="calc.input('3')">3</button>
-      <button class="operator" onclick="calc.input('-')">−</button>
+      <button>1</button>
+      <button>2</button>
+      <button>3</button>
+      <button class="operator">+</button>
       
-      <button class="zero" onclick="calc.input('0')">0</button>
-      <button onclick="calc.input('.')">.</button>
-      <button class="operator" onclick="calc.input('+')">+</button>
+      <button class="zero">0</button>
+      <button>.</button>
+      <button class="operator">x²</button>
       
-      <button class="equals" onclick="calc.calculate()">=</button>
-      <button class="operator" onclick="calc.input('**')">x²</button>
-      <button class="operator" onclick="calc.sqrt()">√</button>
+      <button class="equals">=</button>
+      <button class="operator">√</button>
     </div>
 
     <div class="history">
@@ -200,6 +210,36 @@
         this.result = '0';
         this.history = [];
         this.loadHistory();
+        this.setupEventListeners();
+      }
+
+      setupEventListeners() {
+        // Get all buttons
+        const buttons = document.querySelectorAll('button');
+        
+        buttons.forEach(button => {
+          button.addEventListener('click', () => {
+            const text = button.textContent.trim();
+            
+            if (button.classList.contains('clear')) {
+              this.clear();
+            } else if (button.classList.contains('equals')) {
+              this.calculate();
+            } else if (text === '√') {
+              this.sqrt();
+            } else if (text === 'x²') {
+              this.power2();
+            } else if (text === '÷') {
+              this.input('/');
+            } else if (text === '×') {
+              this.input('*');
+            } else if (text === '−') {
+              this.input('-');
+            } else {
+              this.input(text);
+            }
+          });
+        });
       }
 
       input(value) {
@@ -215,53 +255,48 @@
 
       sqrt() {
         if (this.expression) {
-          this.expression = `Math.sqrt(${this.expression})`;
-          this.calculate();
+          try {
+            const value = eval(this.expression);
+            this.result = String(Math.sqrt(value));
+            this.addToHistory(this.expression, `√(${this.expression}) = ${this.result}`);
+            this.expression = '';
+            this.updateDisplay();
+          } catch (error) {
+            this.result = 'Erreur';
+            this.updateDisplay();
+          }
+        } else if (this.result !== '0' && this.result !== 'Erreur') {
+          const value = parseFloat(this.result);
+          this.result = String(Math.sqrt(value));
+          this.addToHistory(this.expression, `√(${value}) = ${this.result}`);
+          this.updateDisplay();
         }
       }
 
-      async calculate() {
+      power2() {
+        if (this.expression) {
+          this.expression += '**2';
+          this.updateDisplay();
+        } else if (this.result !== '0' && this.result !== 'Erreur') {
+          this.expression = this.result + '**2';
+          this.updateDisplay();
+        }
+      }
+
+      calculate() {
         if (!this.expression) return;
 
         try {
-          // Use CPU Manager if available
-          if (window.parent && window.parent.BrowserOS && window.parent.BrowserOS.cpuManager) {
-            // Check if it's a simple operation or complex
-            const isSimple = /^[\d\.\+\-\*\/\(\)\s]+$/.test(this.expression);
-            
-            if (isSimple) {
-              // Evaluate directly
-              this.result = String(eval(this.expression));
-            } else {
-              // Use CPU manager for complex operations
-              const operation = this.detectOperation();
-              if (operation) {
-                this.result = String(await window.parent.BrowserOS.cpuManager.execute(operation.name, ...operation.args));
-              } else {
-                this.result = String(eval(this.expression));
-              }
-            }
-          } else {
-            // Fallback to eval
-            this.result = String(eval(this.expression));
-          }
-
-          // Add to history
-          this.history.unshift({
-            expression: this.expression,
-            result: this.result,
-            timestamp: new Date().toLocaleTimeString()
-          });
-
-          // Keep only last 10
-          if (this.history.length > 10) {
-            this.history.pop();
-          }
-
-          this.saveHistory();
-          this.updateHistory();
-
-          // Clear expression but keep result
+          // Safe eval for simple math
+          const sanitized = this.expression
+            .replace(/[^0-9+\-*/.()]/g, '')
+            .replace(/\*\*/g, '^');
+          
+          // Use Function instead of eval for safety
+          const result = new Function('return ' + this.expression)();
+          
+          this.result = String(result);
+          this.addToHistory(this.expression, this.result);
           this.expression = '';
           
         } catch (error) {
@@ -272,28 +307,28 @@
         this.updateDisplay();
       }
 
-      detectOperation() {
-        // Detect special operations for CPU manager
-        if (this.expression.includes('Math.sqrt')) {
-          const match = this.expression.match(/Math\.sqrt\(([\d\.]+)\)/);
-          if (match) {
-            return { name: 'sqrt', args: [parseFloat(match[1])] };
-          }
+      addToHistory(expr, result) {
+        this.history.unshift({
+          expression: expr,
+          result: result,
+          timestamp: new Date().toLocaleTimeString()
+        });
+
+        // Keep only last 10
+        if (this.history.length > 10) {
+          this.history.pop();
         }
 
-        if (this.expression.includes('**')) {
-          const parts = this.expression.split('**');
-          if (parts.length === 2) {
-            return { name: 'power', args: [parseFloat(parts[0]), parseFloat(parts[1])] };
-          }
-        }
-
-        return null;
+        this.saveHistory();
+        this.updateHistory();
       }
 
       updateDisplay() {
-        document.getElementById('expression').textContent = this.expression || ' ';
-        document.getElementById('result').textContent = this.result;
+        const exprEl = document.getElementById('expression');
+        const resultEl = document.getElementById('result');
+        
+        exprEl.textContent = this.expression || '\u00A0';
+        resultEl.textContent = this.result;
       }
 
       updateHistory() {
@@ -304,21 +339,34 @@
           return;
         }
 
-        historyEl.innerHTML = this.history.map(item => `
-          <div class="history-item">
+        historyEl.innerHTML = this.history.map((item, index) => `
+          <div class="history-item" onclick="calc.loadFromHistory(${index})">
             <div style="color: #9090a8;">${item.expression}</div>
             <div style="color: #667eea; font-weight: 600;">= ${item.result}</div>
           </div>
         `).join('');
       }
 
+      loadFromHistory(index) {
+        const item = this.history[index];
+        if (item) {
+          this.expression = item.expression;
+          this.result = item.result;
+          this.updateDisplay();
+        }
+      }
+
       saveHistory() {
-        localStorage.setItem('calculator_history', JSON.stringify(this.history));
+        try {
+          localStorage.setItem('nexus_calculator_history', JSON.stringify(this.history));
+        } catch (error) {
+          console.error('Failed to save history:', error);
+        }
       }
 
       loadHistory() {
         try {
-          const saved = localStorage.getItem('calculator_history');
+          const saved = localStorage.getItem('nexus_calculator_history');
           if (saved) {
             this.history = JSON.parse(saved);
             this.updateHistory();
@@ -349,9 +397,7 @@
     });
 
     // Notify parent that app is ready
-    if (window.parent && window.parent.BrowserOS) {
-      console.log('[Calculator] App ready');
-    }
+    console.log('[Calculator] Initialized');
   </script>
 </body>
 </html>
