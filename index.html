@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#667eea">
+  <title>NEXUS Browser OS</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/themes/dark.css">
+  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/shoelace-autoloader.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #667eea;
+      --primary-dark: #5568d3;
+      --secondary: #764ba2;
+      --bg-desktop: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
+      --bg-glass: rgba(20, 20, 30, 0.9);
+      --bg-glass-light: rgba(255, 255, 255, 0.05);
+      --text-primary: #e8e8f0;
+      --text-secondary: #9090a8;
+      --border: rgba(255, 255, 255, 0.1);
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      background: var(--bg-desktop);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Desktop */
+    #desktop {
+      height: calc(100vh - 60px);
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, 100px);
+      grid-auto-rows: 100px;
+      gap: 20px;
+      align-content: start;
+      overflow-y: auto;
+    }
+
+    /* App Icons */
+    .app-icon {
+      width: 100px;
+      height: 100px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-radius: 12px;
+      padding: 10px;
+      user-select: none;
+    }
+
+    .app-icon:hover {
+      background: var(--bg-glass-light);
+      backdrop-filter: blur(10px);
+      transform: scale(1.05);
+    }
+
+    .app-icon:active {
+      transform: scale(0.95);
+    }
+
+    .app-icon-image {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .app-icon-label {
+      font-size: 12px;
+      text-align: center;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      font-weight: 500;
+    }
+
+    /* Taskbar */
+    #taskbar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 15px;
+      z-index: 9999;
+    }
+
+    #start-button {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    #start-button:hover {
+      transform: scale(1.1);
+    }
+
+    #taskbar-apps {
+      display: flex;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .taskbar-app {
+      height: 40px;
+      padding: 0 16px;
+      background: var(--bg-glass-light);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 13px;
+    }
+
+    .taskbar-app:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .taskbar-app.active {
+      background: rgba(102, 126, 234, 0.3);
+      border-bottom: 2px solid var(--primary);
+    }
+
+    #system-tray {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .system-icon {
+      cursor: pointer;
+      opacity: 0.8;
+      transition: opacity 0.2s;
+    }
+
+    .system-icon:hover {
+      opacity: 1;
+    }
+
+    /* Start Menu */
+    #start-menu {
+      position: fixed;
+      bottom: 70px;
+      left: 20px;
+      width: 500px;
+      height: 600px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+      display: none;
+      flex-direction: column;
+      z-index: 10000;
+    }
+
+    #start-menu.active {
+      display: flex;
+    }
+
+    #start-menu-header {
+      padding: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    #start-menu-search {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg-glass-light);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 14px;
+      outline: none;
+    }
+
+    #start-menu-apps {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 15px;
+      align-content: start;
+    }
+
+    .start-menu-app {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 15px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .start-menu-app:hover {
+      background: var(--bg-glass-light);
+    }
+
+    /* Context Menu */
+    #context-menu {
+      position: fixed;
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      border-radius: 8px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      display: none;
+      z-index: 10001;
+      min-width: 180px;
+    }
+
+    #context-menu.active {
+      display: block;
+    }
+
+    .context-menu-item {
+      padding: 10px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+
+    .context-menu-item:hover {
+      background: var(--bg-glass-light);
+    }
+
+    .context-menu-separator {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    /* Windows Container */
+    #windows-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 60px;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    /* Loading Screen */
+    #loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--bg-desktop);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      z-index: 99999;
+      transition: opacity 0.5s;
+    }
+
+    #loading-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 18px;
+      color: var(--text-secondary);
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loading-screen">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Démarrage de NEXUS OS...</div>
+  </div>
+
+  <!-- Desktop -->
+  <div id="desktop"></div>
+
+  <!-- Windows Container -->
+  <div id="windows-container"></div>
+
+  <!-- Taskbar -->
+  <div id="taskbar">
+    <div id="start-button">
+      <sl-icon name="grid-3x3" style="font-size: 20px;"></sl-icon>
+    </div>
+    
+    <div id="taskbar-apps"></div>
+    
+    <div id="system-tray">
+      <div class="system-icon" title="CPU Usage">
+        <sl-icon name="activity"></sl-icon>
+      </div>
+      <div class="system-icon" title="Network">
+        <sl-icon name="wifi"></sl-icon>
+      </div>
+      <div class="system-icon" title="Volume">
+        <sl-icon name="volume-2"></sl-icon>
+      </div>
+      <div style="margin-left: 10px; font-weight: 500;">
+        <span id="clock">00:00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Start Menu -->
+  <div id="start-menu">
+    <div id="start-menu-header">
+      <input 
+        type="text" 
+        id="start-menu-search" 
+        placeholder="Rechercher une application..."
+      >
+    </div>
+    <div id="start-menu-apps"></div>
+  </div>
+
+  <!-- Context Menu -->
+  <div id="context-menu">
+    <div class="context-menu-item" onclick="BrowserOS.refreshDesktop()">
+      <sl-icon name="refresh-cw"></sl-icon>
+      Actualiser
+    </div>
+    <div class="context-menu-separator"></div>
+    <div class="context-menu-item" onclick="BrowserOS.openApp('settings')">
+      <sl-icon name="settings"></sl-icon>
+      Paramètres
+    </div>
+  </div>
+
+  <!-- System Scripts -->
+  <script type="module" src="system/kernel.js"></script>
+  <script type="module" src="system/state.js"></script>
+  <script type="module" src="system/window-manager.js"></script>
+  <script type="module" src="system/router.js"></script>
+  <script type="module" src="system/notifications.js"></script>
+  
+  <script type="module">
+    import { Kernel } from './system/kernel.js';
+    
+    // Initialize Browser OS
+    window.BrowserOS = new Kernel();
+    
+    // Boot system
+    window.addEventListener('DOMContentLoaded', async () => {
+      await window.BrowserOS.boot();
+      
+      // Hide loading screen
+      setTimeout(() => {
+        document.getElementById('loading-screen').classList.add('hidden');
+      }, 1000);
+    });
+    
+    // Update clock
+    function updateClock() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('clock').textContent = `${hours}:${minutes}`;
+    }
+    
+    updateClock();
+    setInterval(updateClock, 1000);
+    
+    // Start button
+    document.getElementById('start-button').addEventListener('click', () => {
+      document.getElementById('start-menu').classList.toggle('active');
+    });
+    
+    // Close start menu on outside click
+    document.addEventListener('click', (e) => {
+      const startMenu = document.getElementById('start-menu');
+      const startButton = document.getElementById('start-button');
+      
+      if (!startMenu.contains(e.target) && !startButton.contains(e.target)) {
+        startMenu.classList.remove('active');
+      }
+    });
+    
+    // Context menu
+    document.getElementById('desktop').addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      
+      const contextMenu = document.getElementById('context-menu');
+      contextMenu.style.left = `${e.clientX}px`;
+      contextMenu.style.top = `${e.clientY}px`;
+      contextMenu.classList.add('active');
+    });
+    
+    // Close context menu
+    document.addEventListener('click', () => {
+      document.getElementById('context-menu').classList.remove('active');
+    });
+    
+    // Search apps
+    document.getElementById('start-menu-search').addEventListener('input', (e) => {
+      const query = e.target.value.toLowerCase();
+      const apps = document.querySelectorAll('.start-menu-app');
+      
+      apps.forEach(app => {
+        const name = app.dataset.name.toLowerCase();
+        app.style.display = name.includes(query) ? 'flex' : 'none';
+      });
+    });
+  </script>
+</body>
+</html>
