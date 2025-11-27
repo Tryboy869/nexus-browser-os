@@ -379,6 +379,241 @@
   <!-- SYSTEM MODULES -->
   <script type="module">
     // ═══════════════════════════════════════════════
+    // CPU MANAGER (Compute Engine)
+    // ═══════════════════════════════════════════════
+    class CPUManager {
+      constructor(gateway) {
+        this.gateway = gateway;
+        this.cores = [];
+        this.numCores = 4;
+        this.queue = [];
+        this.nextTaskId = 1;
+        this.pendingTasks = new Map();
+        
+        this.initWorkers();
+      }
+
+      initWorkers() {
+        this.gateway.logger.info('CPU', { message: 'Initializing CPU cores...', numCores: this.numCores });
+
+        for (let i = 0; i < this.numCores; i++) {
+          const worker = this.createWorker(i);
+          this.cores.push({
+            id: i,
+            worker,
+            busy: false,
+            tasksCompleted: 0
+          });
+        }
+
+        this.gateway.logger.info('CPU', { message: 'CPU cores ready', numCores: this.numCores });
+      }
+
+      createWorker(coreId) {
+        const workerCode = `
+          self.onmessage = function(e) {
+            const { taskId, task, params } = e.data;
+            
+            try {
+              let result;
+              
+              switch(task) {
+                case 'fibonacci':
+                  result = fibonacci(params.n);
+                  break;
+                case 'factorial':
+                  result = factorial(params.n);
+                  break;
+                case 'isPrime':
+                  result = isPrime(params.n);
+                  break;
+                case 'hash':
+                  result = simpleHash(params.data);
+                  break;
+                case 'sort':
+                  result = params.array.slice().sort((a, b) => a - b);
+                  break;
+                case 'search':
+                  result = params.array.filter(item => 
+                    JSON.stringify(item).toLowerCase().includes(params.query.toLowerCase())
+                  );
+                  break;
+                case 'compute':
+                  // Generic computation
+                  result = eval(params.expression);
+                  break;
+                default:
+                  throw new Error('Unknown task: ' + task);
+              }
+              
+              self.postMessage({ taskId, success: true, result });
+            } catch (error) {
+              self.postMessage({ taskId, success: false, error: error.message });
+            }
+          };
+          
+          function fibonacci(n) {
+            if (n <= 1) return n;
+            let a = 0, b = 1;
+            for (let i = 2; i <= n; i++) {
+              [a, b] = [b, a + b];
+            }
+            return b;
+          }
+          
+          function factorial(n) {
+            if (n <= 1) return 1;
+            let result = 1;
+            for (let i = 2; i <= n; i++) {
+              result *= i;
+            }
+            return result;
+          }
+          
+          function isPrime(n) {
+            if (n <= 1) return false;
+            if (n <= 3) return true;
+            if (n % 2 === 0 || n % 3 === 0) return false;
+            
+            for (let i = 5; i * i <= n; i += 6) {
+              if (n % i === 0 || n % (i + 2) === 0) return false;
+            }
+            return true;
+          }
+          
+          function simpleHash(data) {
+            let hash = 0;
+            const str = String(data);
+            for (let i = 0; i < str.length; i++) {
+              const char = str.charCodeAt(i);
+              hash = ((hash << 5) - hash) + char;
+              hash = hash & hash;
+            }
+            return hash.toString(16);
+          }
+        `;
+
+        const blob = new Blob([workerCode], { type: 'application/javascript' });
+        const workerUrl = URL.createObjectURL(blob);
+        const worker = new Worker(workerUrl);
+
+        worker.onmessage = (e) => {
+          this.handleWorkerResponse(coreId, e.data);
+        };
+
+        worker.onerror = (error) => {
+          this.gateway.logger.error('CPU', { coreId, error: error.message });
+        };
+
+        return worker;
+      }
+
+      async executeTask(task, params) {
+        const taskId = this.nextTaskId++;
+
+        this.gateway.logger.info('CPU', { 
+          action: 'task_queued', 
+          taskId, 
+          task, 
+          queueLength: this.queue.length 
+        });
+
+        return new Promise((resolve, reject) => {
+          this.pendingTasks.set(taskId, { resolve, reject, task, params });
+          this.queue.push({ taskId, task, params });
+          this.processQueue();
+        });
+      }
+
+      async executeBatch(tasks) {
+        this.gateway.logger.info('CPU', { 
+          action: 'batch_queued', 
+          count: tasks.length 
+        });
+
+        const promises = tasks.map(({ task, params }) => 
+          this.executeTask(task, params)
+        );
+
+        return Promise.all(promises);
+      }
+
+      processQueue() {
+        if (this.queue.length === 0) return;
+
+        const availableCore = this.cores.find(core => !core.busy);
+        if (!availableCore) return;
+
+        const { taskId, task, params } = this.queue.shift();
+        
+        availableCore.busy = true;
+        availableCore.worker.postMessage({ taskId, task, params });
+
+        this.gateway.logger.info('CPU', { 
+          action: 'task_executing', 
+          taskId, 
+          coreId: availableCore.id 
+        });
+
+        // Continue processing queue
+        if (this.queue.length > 0) {
+          setTimeout(() => this.processQueue(), 0);
+        }
+      }
+
+      handleWorkerResponse(coreId, data) {
+        const core = this.cores[coreId];
+        const { taskId, success, result, error } = data;
+
+        core.busy = false;
+        core.tasksCompleted++;
+
+        const pendingTask = this.pendingTasks.get(taskId);
+        if (!pendingTask) return;
+
+        if (success) {
+          this.gateway.logger.info('CPU', { 
+            action: 'task_completed', 
+            taskId, 
+            coreId,
+            tasksCompleted: core.tasksCompleted
+          });
+          pendingTask.resolve(result);
+        } else {
+          this.gateway.logger.error('CPU', { 
+            action: 'task_failed', 
+            taskId, 
+            coreId, 
+            error 
+          });
+          pendingTask.reject(new Error(error));
+        }
+
+        this.pendingTasks.delete(taskId);
+        this.processQueue();
+      }
+
+      getStats() {
+        return {
+          cores: this.numCores,
+          busyCores: this.cores.filter(c => c.busy).length,
+          queueLength: this.queue.length,
+          totalTasksCompleted: this.cores.reduce((sum, c) => sum + c.tasksCompleted, 0),
+          coreStats: this.cores.map(c => ({
+            id: c.id,
+            busy: c.busy,
+            tasksCompleted: c.tasksCompleted
+          }))
+        };
+      }
+
+      terminate() {
+        this.cores.forEach(core => core.worker.terminate());
+        this.gateway.logger.info('CPU', { message: 'All CPU cores terminated' });
+      }
+    }
+
+    // ═══════════════════════════════════════════════
     // SYSTEM LOGGER
     // ═══════════════════════════════════════════════
     class SystemLogger {
@@ -598,52 +833,180 @@
     }
 
     // ═══════════════════════════════════════════════
-    // STORAGE MANAGER
+    // STORAGE MANAGER (LDSS Integration)
     // ═══════════════════════════════════════════════
     class StorageManager {
       constructor(gateway) {
         this.gateway = gateway;
         this.db = null;
+        this.connected = false;
+        this.autoSaveInterval = null;
+        
+        // Configuration LDSS - REMPLACER PAR VOTRE TOKEN
+        this.config = {
+          token: 'demo_token', // ⚠️ REMPLACER PAR VOTRE TOKEN LDSS
+          projectName: 'NexusOS',
+          apiUrl: 'https://ldss-e9kz.onrender.com'
+        };
       }
 
       async init() {
         try {
-          this.db = new LDSS({
-            token: 'demo_token',
-            projectName: 'NexusOS',
-            apiUrl: 'https://ldss-e9kz.onrender.com'
-          });
-          this.gateway.logger.info('STORAGE', { message: 'LDSS initialized' });
+          this.gateway.logger.info('STORAGE', { message: 'Initializing LDSS...' });
+          
+          this.db = new LDSS(this.config);
+          this.connected = true;
+          
+          this.gateway.logger.info('STORAGE', { message: 'LDSS connected successfully' });
+          
+          // Charger état sauvegardé
+          await this.restoreSystemState();
+          
+          // Activer auto-save toutes les 30 secondes
+          this.startAutoSave();
+          
         } catch (error) {
-          this.gateway.logger.error('STORAGE', { message: 'LDSS init failed', error: error.message });
+          this.gateway.logger.error('STORAGE', { 
+            message: 'LDSS initialization failed', 
+            error: error.message 
+          });
+          this.connected = false;
         }
       }
 
       async set(key, value) {
         try {
-          if (!this.db) return;
-          await this.db.store('system_storage', { key, value });
+          if (!this.connected || !this.db) {
+            this.gateway.logger.warn('STORAGE', { 
+              message: 'LDSS not connected, using fallback' 
+            });
+            // Fallback: localStorage
+            localStorage.setItem(key, JSON.stringify(value));
+            return;
+          }
+          
+          await this.db.store('nexus_storage', { 
+            key, 
+            value,
+            timestamp: Date.now()
+          });
+          
           this.gateway.logger.info('STORAGE', { action: 'set', key });
         } catch (error) {
-          this.gateway.logger.error('STORAGE', { action: 'set', key, error: error.message });
+          this.gateway.logger.error('STORAGE', { 
+            action: 'set', 
+            key, 
+            error: error.message 
+          });
+          // Fallback
+          localStorage.setItem(key, JSON.stringify(value));
         }
       }
 
       async get(key) {
         try {
-          if (!this.db) return null;
-          const result = await this.db.get('system_storage', key);
+          if (!this.connected || !this.db) {
+            // Fallback: localStorage
+            const item = localStorage.getItem(key);
+            return item ? JSON.parse(item) : null;
+          }
+          
+          const result = await this.db.get('nexus_storage', key);
           return result?.value;
         } catch (error) {
-          this.gateway.logger.error('STORAGE', { action: 'get', key, error: error.message });
-          return null;
+          this.gateway.logger.error('STORAGE', { 
+            action: 'get', 
+            key, 
+            error: error.message 
+          });
+          // Fallback
+          const item = localStorage.getItem(key);
+          return item ? JSON.parse(item) : null;
+        }
+      }
+
+      async saveSystemState() {
+        try {
+          const state = {
+            apps: Array.from(this.gateway.apps.entries()).map(([pid, app]) => ({
+              pid: app.pid,
+              name: app.name,
+              state: app.state,
+              launchedAt: app.launchedAt
+            })),
+            windows: Array.from(this.gateway.windowManager.windows.entries()).map(([pid, win]) => ({
+              pid,
+              state: win.state,
+              bounds: win.originalBounds
+            })),
+            timestamp: Date.now()
+          };
+
+          await this.set('system_state', state);
+          
+          this.gateway.logger.info('STORAGE', { 
+            action: 'system_state_saved', 
+            appsCount: state.apps.length 
+          });
+        } catch (error) {
+          this.gateway.logger.error('STORAGE', { 
+            action: 'save_system_state_failed', 
+            error: error.message 
+          });
+        }
+      }
+
+      async restoreSystemState() {
+        try {
+          const state = await this.get('system_state');
+          
+          if (!state) {
+            this.gateway.logger.info('STORAGE', { message: 'No saved state found' });
+            return;
+          }
+
+          this.gateway.logger.info('STORAGE', { 
+            message: 'Restoring system state...', 
+            appsCount: state.apps?.length || 0 
+          });
+
+          // Restaurer apps (optionnel - peut être commenté si pas désiré)
+          // for (const appState of state.apps || []) {
+          //   if (appState.state === 'ready') {
+          //     await this.gateway.launchApp(appState.name);
+          //   }
+          // }
+
+          this.gateway.logger.info('STORAGE', { message: 'System state restored' });
+        } catch (error) {
+          this.gateway.logger.error('STORAGE', { 
+            action: 'restore_system_state_failed', 
+            error: error.message 
+          });
+        }
+      }
+
+      startAutoSave() {
+        // Auto-save toutes les 30 secondes
+        this.autoSaveInterval = setInterval(() => {
+          this.saveSystemState();
+        }, 30000);
+
+        this.gateway.logger.info('STORAGE', { message: 'Auto-save enabled (30s interval)' });
+      }
+
+      stopAutoSave() {
+        if (this.autoSaveInterval) {
+          clearInterval(this.autoSaveInterval);
+          this.autoSaveInterval = null;
         }
       }
 
       getStats() {
         return {
-          connected: !!this.db,
-          type: 'LDSS'
+          connected: this.connected,
+          type: this.connected ? 'LDSS' : 'localStorage',
+          autoSave: !!this.autoSaveInterval
         };
       }
     }
@@ -689,6 +1052,7 @@
         this.bootTime = null;
 
         this.logger = new SystemLogger();
+        this.cpuManager = new CPUManager(this);
         this.windowManager = new WindowManager(this);
         this.storage = new StorageManager(this);
         this.ipc = new IPCRouter(this);
@@ -750,7 +1114,10 @@
           'ipc:emit': (data) => this.ipc.emit(data.event, data.payload),
           'system:info:request': () => this.getSystemInfo(),
           'process:list:request': () => this.getProcessList(),
-          'process:kill': (data) => this.closeApp(data.targetPid)
+          'process:kill': (data) => this.closeApp(data.targetPid),
+          'cpu:execute': (data) => this.cpuManager.executeTask(data.task, data.params),
+          'cpu:batch': (data) => this.cpuManager.executeBatch(data.tasks),
+          'cpu:stats': () => this.cpuManager.getStats()
         };
 
         const handler = routes[type];
@@ -994,7 +1361,8 @@
             total: this.apps.size
           },
           logs: this.logger.getStats(),
-          storage: this.storage.getStats()
+          storage: this.storage.getStats(),
+          cpu: this.cpuManager.getStats()
         };
       }
 
@@ -1026,7 +1394,8 @@
       { name: 'calculator', title: 'Calculator', desc: 'Basic calculator' },
       { name: 'terminal', title: 'Terminal', desc: 'Command line interface' },
       { name: 'notepad', title: 'Notepad', desc: 'Text editor' },
-      { name: 'file-manager', title: 'File Manager', desc: 'Browse files' }
+      { name: 'file-manager', title: 'File Manager', desc: 'Browse files' },
+      { name: 'code-editor', title: 'Code Editor', desc: 'Code with syntax highlighting' }
     ];
 
     let gateway;
