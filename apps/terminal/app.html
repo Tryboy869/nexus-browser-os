@@ -164,7 +164,72 @@
           whoami: () => 'user',
           uname: () => 'NEXUS Browser OS v1.0.0',
           sysinfo: () => this.showSystemInfo(),
-          ps: () => this.showProcesses()
+          ps: () => this.showProcesses(),
+          
+          // File operations
+          cp: (args) => this.copyFile(args),
+          mv: (args) => this.moveFile(args),
+          chmod: (args) => 'chmod: permissions changed',
+          find: (args) => this.findFiles(args),
+          tree: (args) => this.showTree(args),
+          head: (args) => this.headFile(args),
+          tail: (args) => this.tailFile(args),
+          wc: (args) => this.wordCount(args),
+          
+          // Text processing
+          grep: (args) => this.grep(args),
+          sort: (args) => this.sortLines(args),
+          uniq: (args) => this.uniqueLines(args),
+          cut: (args) => 'cut: text processing',
+          sed: (args) => 'sed: stream editor',
+          awk: (args) => 'awk: pattern scanning',
+          
+          // System info
+          df: () => this.diskFree(),
+          du: (args) => this.diskUsage(args),
+          free: () => this.memoryInfo(),
+          uptime: () => this.getUptime(),
+          hostname: () => 'nexus-os',
+          env: () => this.showEnvironment(),
+          
+          // Network (simulated)
+          ping: (args) => this.ping(args),
+          curl: (args) => this.curl(args),
+          wget: (args) => 'wget: downloading...',
+          ifconfig: () => this.networkConfig(),
+          
+          // Package manager (simulated)
+          pkg: (args) => this.packageManager(args),
+          apt: (args) => this.packageManager(args),
+          npm: (args) => this.npmManager(args),
+          
+          // Process management
+          kill: (args) => this.killProcess(args),
+          top: () => this.topProcesses(),
+          htop: () => this.topProcesses(),
+          
+          // Utilities
+          history: () => this.showHistory(),
+          alias: (args) => this.createAlias(args),
+          export: (args) => this.exportVariable(args),
+          source: (args) => this.sourceFile(args),
+          time: (args) => this.timeCommand(args),
+          sleep: (args) => this.sleep(args),
+          
+          // Fun commands
+          cowsay: (args) => this.cowsay(args),
+          figlet: (args) => this.figlet(args),
+          fortune: () => this.fortune(),
+          matrix: () => this.matrix(),
+          
+          // System
+          shutdown: () => this.shutdown(),
+          reboot: () => this.reboot(),
+          logout: () => 'Logging out...',
+          
+          // CPU operations
+          stress: (args) => this.stressTest(args),
+          benchmark: () => this.benchmark()
         };
 
         this.init();
@@ -278,21 +343,18 @@
 
       showHelp() {
         return `Available commands:
-  help        Show this help message
-  clear       Clear the terminal
-  ls          List directory contents
-  cd <dir>    Change directory
-  pwd         Print working directory
-  mkdir <dir> Create directory
-  touch <f>   Create file
-  rm <f>      Remove file
-  cat <file>  Display file contents
-  echo <txt>  Print text
-  date        Show current date/time
-  whoami      Show current user
-  uname       Show system info
-  sysinfo     Show system information
-  ps          List processes`;
+BASICS: help, clear, echo, date, whoami, uname, hostname, uptime
+FILES: ls, cd, pwd, mkdir, touch, rm, cat, cp, mv, find, tree
+TEXT: head, tail, wc, grep, sort, uniq, cut, sed, awk
+SYSTEM: ps, kill, top, htop, sysinfo, df, du, free, env
+NETWORK: ping, curl, wget, ifconfig
+PACKAGES: pkg, apt, npm
+UTILITIES: history, alias, export, source, time, sleep
+FUN: cowsay, figlet, fortune, matrix
+POWER: shutdown, reboot, logout
+PERFORMANCE: stress, benchmark
+
+Type 'command --help' for more info on a specific command.`;
       }
 
       clearTerminal() {
@@ -431,6 +493,382 @@
         return `PID    NAME
 1      init
 ${this.pid || 'N/A'}      terminal`;
+      }
+
+      // ═══════════════════════════════════════════════
+      // NEW COMMANDS IMPLEMENTATION
+      // ═══════════════════════════════════════════════
+
+      copyFile(args) {
+        if (args.length < 2) throw new Error('cp: missing operand');
+        const src = this.resolvePath(args[0]);
+        const dest = this.resolvePath(args[1]);
+        
+        if (!this.files[src]) throw new Error(`cp: ${args[0]}: No such file`);
+        
+        this.files[dest] = this.files[src];
+        const destParent = this.getParentPath(dest);
+        const destName = this.getBaseName(dest);
+        
+        if (!this.filesystem[destParent].includes(destName)) {
+          this.filesystem[destParent].push(destName);
+        }
+        
+        return `Copied ${src} to ${dest}`;
+      }
+
+      moveFile(args) {
+        if (args.length < 2) throw new Error('mv: missing operand');
+        this.copyFile(args);
+        this.removeFile([args[0]]);
+        return `Moved ${args[0]} to ${args[1]}`;
+      }
+
+      findFiles(args) {
+        const query = args[0] || '';
+        const matches = [];
+        
+        for (const path in this.filesystem) {
+          if (path.includes(query)) {
+            matches.push(path);
+          }
+          this.filesystem[path].forEach(file => {
+            if (file.includes(query)) {
+              matches.push(`${path}/${file}`);
+            }
+          });
+        }
+        
+        return matches.length > 0 ? matches.join('\n') : 'No matches found';
+      }
+
+      showTree(args) {
+        const path = args[0] ? this.resolvePath(args[0]) : this.currentPath;
+        let output = path + '\n';
+        
+        const buildTree = (p, prefix = '') => {
+          const items = this.filesystem[p] || [];
+          items.forEach((item, idx) => {
+            const isLast = idx === items.length - 1;
+            const symbol = isLast ? '└── ' : '├── ';
+            output += prefix + symbol + item + '\n';
+            
+            const childPath = p === '/' ? `/${item}` : `${p}/${item}`;
+            if (this.filesystem[childPath]) {
+              buildTree(childPath, prefix + (isLast ? '    ' : '│   '));
+            }
+          });
+        };
+        
+        buildTree(path);
+        return output;
+      }
+
+      headFile(args) {
+        if (!args[0]) throw new Error('head: missing file operand');
+        const content = this.readFile(args);
+        const lines = content.split('\n').slice(0, 10);
+        return lines.join('\n');
+      }
+
+      tailFile(args) {
+        if (!args[0]) throw new Error('tail: missing file operand');
+        const content = this.readFile(args);
+        const lines = content.split('\n').slice(-10);
+        return lines.join('\n');
+      }
+
+      wordCount(args) {
+        if (!args[0]) throw new Error('wc: missing file operand');
+        const content = this.readFile(args);
+        const lines = content.split('\n').length;
+        const words = content.trim().split(/\s+/).length;
+        const chars = content.length;
+        return `${lines} ${words} ${chars} ${args[0]}`;
+      }
+
+      grep(args) {
+        if (args.length < 2) throw new Error('grep: missing pattern or file');
+        const pattern = args[0];
+        const content = this.readFile([args[1]]);
+        const matches = content.split('\n').filter(line => 
+          line.toLowerCase().includes(pattern.toLowerCase())
+        );
+        return matches.length > 0 ? matches.join('\n') : 'No matches found';
+      }
+
+      sortLines(args) {
+        if (!args[0]) throw new Error('sort: missing file operand');
+        const content = this.readFile(args);
+        const lines = content.split('\n').sort();
+        return lines.join('\n');
+      }
+
+      uniqueLines(args) {
+        if (!args[0]) throw new Error('uniq: missing file operand');
+        const content = this.readFile(args);
+        const lines = [...new Set(content.split('\n'))];
+        return lines.join('\n');
+      }
+
+      diskFree() {
+        return `Filesystem      Size  Used  Avail Use% Mounted on
+/dev/browser    1.0G  245M  755M  25% /
+tmpfs           512M   12M  500M   3% /tmp
+/dev/storage    5.0G  1.2G  3.8G  24% /home`;
+      }
+
+      diskUsage(args) {
+        const path = args[0] || this.currentPath;
+        return `256K    ${path}`;
+      }
+
+      memoryInfo() {
+        const used = (performance.memory?.usedJSHeapSize / 1048576).toFixed(2) || '0';
+        const total = (performance.memory?.totalJSHeapSize / 1048576).toFixed(2) || '0';
+        return `              total        used        free
+Mem:          ${total}       ${used}       ${(total - used).toFixed(2)}
+`;
+      }
+
+      getUptime() {
+        const uptime = Math.floor(performance.now() / 1000);
+        const hours = Math.floor(uptime / 3600);
+        const minutes = Math.floor((uptime % 3600) / 60);
+        return `${hours}:${String(minutes).padStart(2, '0')}`;
+      }
+
+      showEnvironment() {
+        return `PATH=/usr/bin:/bin:/usr/local/bin
+HOME=/home/user
+USER=user
+SHELL=/bin/bash
+LANG=en_US.UTF-8`;
+      }
+
+      ping(args) {
+        const host = args[0] || 'example.com';
+        return `PING ${host} (93.184.216.34): 56 data bytes
+64 bytes from 93.184.216.34: icmp_seq=0 ttl=56 time=12.3 ms
+64 bytes from 93.184.216.34: icmp_seq=1 ttl=56 time=11.8 ms
+--- ${host} ping statistics ---
+2 packets transmitted, 2 packets received, 0.0% packet loss`;
+      }
+
+      curl(args) {
+        const url = args[0] || 'http://example.com';
+        return `<!DOCTYPE html>
+<html>
+<head><title>Example Domain</title></head>
+<body>
+<h1>Example Domain</h1>
+<p>This domain is for use in illustrative examples.</p>
+</body>
+</html>`;
+      }
+
+      networkConfig() {
+        return `eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>
+      inet 192.168.1.100  netmask 255.255.255.0  broadcast 192.168.1.255
+      ether 00:0a:95:9d:68:16  txqueuelen 1000  (Ethernet)`;
+      }
+
+      packageManager(args) {
+        const cmd = args[0];
+        const pkg = args[1];
+        
+        if (!cmd) return 'Usage: pkg [install|remove|list|search|update]';
+        
+        switch(cmd) {
+          case 'install':
+            return pkg ? `Installing ${pkg}...\n[████████████████] 100%\nSuccessfully installed ${pkg}` : 'Error: package name required';
+          case 'remove':
+            return pkg ? `Removing ${pkg}...\nSuccessfully removed ${pkg}` : 'Error: package name required';
+          case 'list':
+            return `Installed packages:\n- bash\n- coreutils\n- vim\n- git\n- curl\n- wget`;
+          case 'search':
+            return pkg ? `Searching for ${pkg}...\nFound: ${pkg}-1.2.3, ${pkg}-dev` : 'Error: search term required';
+          case 'update':
+            return 'Updating package lists...\nAll packages up to date.';
+          default:
+            return `Unknown command: ${cmd}`;
+        }
+      }
+
+      npmManager(args) {
+        const cmd = args[0];
+        const pkg = args[1];
+        
+        if (!cmd) return 'Usage: npm [install|uninstall|list|run]';
+        
+        switch(cmd) {
+          case 'install':
+            return pkg ? `npm install ${pkg}\nadded 1 package in 2.3s` : 'Error: package name required';
+          case 'uninstall':
+            return pkg ? `removed ${pkg}` : 'Error: package name required';
+          case 'list':
+            return `nexus-os@1.0.0\n└── dependencies: 0 packages`;
+          case 'run':
+            return 'Running script...';
+          default:
+            return `Unknown command: ${cmd}`;
+        }
+      }
+
+      killProcess(args) {
+        if (!args[0]) throw new Error('kill: missing PID');
+        const pid = parseInt(args[0]);
+        
+        window.parent.postMessage({
+          type: 'process:kill',
+          pid: this.pid,
+          data: { targetPid: pid }
+        }, '*');
+        
+        return `Killed process ${pid}`;
+      }
+
+      topProcesses() {
+        return `PID    COMMAND          %CPU    %MEM
+1      init             0.0     0.5
+${this.pid || 'N/A'}      terminal         2.1     1.2
+2      calculator       0.5     0.8
+3      notepad          1.0     1.5`;
+      }
+
+      showHistory() {
+        return this.commandHistory.slice(-20).map((cmd, idx) => 
+          `${idx + 1}  ${cmd}`
+        ).join('\n');
+      }
+
+      createAlias(args) {
+        if (args.length === 0) return 'Usage: alias name=command';
+        return `Alias created: ${args.join(' ')}`;
+      }
+
+      exportVariable(args) {
+        if (args.length === 0) return 'Usage: export VAR=value';
+        return `Exported: ${args.join(' ')}`;
+      }
+
+      sourceFile(args) {
+        if (!args[0]) throw new Error('source: missing file');
+        return `Sourced: ${args[0]}`;
+      }
+
+      timeCommand(args) {
+        if (!args[0]) throw new Error('time: missing command');
+        const start = performance.now();
+        // Execute command (simplified)
+        const end = performance.now();
+        return `\nreal    0m${((end - start) / 1000).toFixed(3)}s
+user    0m0.001s
+sys     0m0.001s`;
+      }
+
+      sleep(args) {
+        const seconds = parseInt(args[0]) || 1;
+        return `Sleeping for ${seconds} second(s)...`;
+      }
+
+      cowsay(args) {
+        const text = args.join(' ') || 'Hello!';
+        return ` ${'_'.repeat(text.length + 2)}
+< ${text} >
+ ${'-'.repeat(text.length + 2)}
+        \\   ^__^
+         \\  (oo)\\_______
+            (__)\\       )\\/\\
+                ||----w |
+                ||     ||`;
+      }
+
+      figlet(args) {
+        const text = args.join(' ') || 'NEXUS';
+        return `
+ ███╗   ██╗███████╗██╗  ██╗██╗   ██╗███████╗
+ ████╗  ██║██╔════╝╚██╗██╔╝██║   ██║██╔════╝
+ ██╔██╗ ██║█████╗   ╚███╔╝ ██║   ██║███████╗
+ ██║╚██╗██║██╔══╝   ██╔██╗ ██║   ██║╚════██║
+ ██║ ╚████║███████╗██╔╝ ██╗╚██████╔╝███████║
+ ╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝`;
+      }
+
+      fortune() {
+        const fortunes = [
+          'The best way to predict the future is to invent it.',
+          'Code never lies, comments sometimes do.',
+          'Simplicity is the ultimate sophistication.',
+          'Make it work, make it right, make it fast.',
+          'First, solve the problem. Then, write the code.'
+        ];
+        return fortunes[Math.floor(Math.random() * fortunes.length)];
+      }
+
+      matrix() {
+        return `Wake up, Neo...
+The Matrix has you...
+Follow the white rabbit.
+
+Knock, knock, Neo.`;
+      }
+
+      shutdown() {
+        this.output('System shutting down...', 'info');
+        setTimeout(() => {
+          window.parent.postMessage({
+            type: 'system:shutdown',
+            pid: this.pid
+          }, '*');
+        }, 2000);
+        return 'Goodbye.';
+      }
+
+      reboot() {
+        this.output('System rebooting...', 'info');
+        setTimeout(() => {
+          location.reload();
+        }, 2000);
+        return 'Rebooting...';
+      }
+
+      async stressTest(args) {
+        const iterations = parseInt(args[0]) || 10;
+        this.output(`Starting CPU stress test (${iterations} tasks)...`, 'info');
+        
+        // Request CPU computation from parent
+        window.parent.postMessage({
+          type: 'cpu:batch',
+          pid: this.pid,
+          data: {
+            tasks: Array(iterations).fill(0).map((_, i) => ({
+              task: 'fibonacci',
+              params: { n: 30 + i }
+            }))
+          }
+        }, '*');
+        
+        return 'Stress test queued...';
+      }
+
+      async benchmark() {
+        this.output('Running system benchmark...', 'info');
+        
+        const start = performance.now();
+        
+        // CPU test
+        let sum = 0;
+        for (let i = 0; i < 1000000; i++) {
+          sum += Math.sqrt(i);
+        }
+        
+        const cpuTime = performance.now() - start;
+        
+        return `Benchmark Results:
+CPU Test: ${cpuTime.toFixed(2)}ms
+Memory: ${(performance.memory?.usedJSHeapSize / 1048576).toFixed(2)}MB
+Score: ${(1000 / cpuTime * 100).toFixed(0)}/100`;
       }
 
       // ═══════════════════════════════════════════════
