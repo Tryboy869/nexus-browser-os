@@ -73,8 +73,19 @@ export class Kernel {
         icon: 'settings',
         path: 'apps/settings/app.html',
         singleton: true
+      },
+      {
+        id: 'system-test',
+        name: 'Tests système',
+        icon: 'activity',
+        path: 'apps/system-test/app.html',
+        singleton: true
       }
     ];
+    
+    // Use updated window manager
+    import { WindowManager as WindowManagerV2 } from './window-manager-v2.js';
+    this.windowManager = new WindowManagerV2();
     
     console.log('[Kernel] Initialized');
   }
@@ -344,6 +355,54 @@ export class Kernel {
   refreshDesktop() {
     this.loadDesktopIcons();
     this.notifications.show('Bureau actualisé', 'success');
+  }
+  
+  async saveState() {
+    if (!this.ldssManager) return;
+    
+    try {
+      // Save window states
+      const windowStates = this.windowManager.getWindowState();
+      await this.ldssManager.saveWindowState(windowStates);
+      
+      // Save system state
+      await this.ldssManager.saveSystemState({
+        processes: Array.from(this.processes.values()).map(p => ({
+          pid: p.pid,
+          appId: p.appId,
+          state: p.state
+        })),
+        cpuStats: this.cpuManager.getStats()
+      });
+      
+      console.log('[Kernel] State saved');
+    } catch (error) {
+      console.error('[Kernel] Failed to save state:', error);
+    }
+  }
+  
+  async restoreState() {
+    if (!this.ldssManager) return;
+    
+    try {
+      // Restore windows
+      const windowStates = await this.ldssManager.loadWindowState();
+      
+      for (const state of windowStates) {
+        if (state.state !== 'minimized') {
+          await this.openApp(state.appId, {
+            x: state.x,
+            y: state.y,
+            width: state.width,
+            height: state.height
+          });
+        }
+      }
+      
+      console.log('[Kernel] State restored');
+    } catch (error) {
+      console.error('[Kernel] Failed to restore state:', error);
+    }
   }
 }
 
