@@ -1,378 +1,972 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#667eea">
-  <title>NEXUS OS</title>
-  <link rel="manifest" href="/manifest.json">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/themes/dark.css">
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/shoelace-autoloader.js"></script>
-  <script src="https://ldss-e9kz.onrender.com/ldss-client.js"></script>
+  <title>NEXUS Browser OS</title>
+  <meta name="description" content="Complete operating system running 100% in your browser">
+  <link rel="manifest" href="manifest.json">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    :root {
-      --primary: #667eea;
-      --bg-desktop: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
-      --bg-glass: rgba(20, 20, 30, 0.9);
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #000;
-      color: #e8e8f0;
-      height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       overflow: hidden;
+      background: #0a0a0f;
+      color: #e8e8f0;
     }
 
     /* BOOT SCREEN */
     #boot-screen {
       position: fixed;
       inset: 0;
-      background: #000;
+      background: #0a0a0f;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      z-index: 99999;
+      z-index: 10000;
+      transition: opacity 0.5s ease;
     }
 
-    #boot-screen.hidden { display: none; }
-
-    #power-button {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--primary), #764ba2);
-      border: 4px solid rgba(255,255,255,0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.3s;
-      box-shadow: 0 0 30px rgba(102,126,234,0.5);
-    }
-
-    #power-button:hover {
-      transform: scale(1.1);
-      box-shadow: 0 0 50px rgba(102,126,234,0.8);
-    }
-
-    #power-button.booting {
-      animation: pulse 1s infinite;
+    #boot-screen.hidden {
+      opacity: 0;
       pointer-events: none;
     }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.7; transform: scale(0.95); }
+    .boot-logo {
+      font-size: 48px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 30px;
+    }
+
+    #power-button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      border-radius: 50px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+    }
+
+    #power-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px rgba(102, 126, 234, 0.5);
+    }
+
+    #power-button:active {
+      transform: translateY(0);
     }
 
     #boot-logs {
-      margin-top: 40px;
-      font-family: 'Monaco', monospace;
-      font-size: 12px;
-      color: #0f0;
+      margin-top: 30px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: #70d6a3;
       max-width: 600px;
+      text-align: left;
       display: none;
     }
 
-    #boot-logs.visible { display: block; }
-
-    .boot-log {
-      padding: 2px 0;
-      opacity: 0;
-      animation: fadeIn 0.3s forwards;
+    #boot-logs.visible {
+      display: block;
     }
 
-    @keyframes fadeIn {
+    .boot-log {
+      padding: 4px 0;
+      opacity: 0;
+      animation: fadeInLog 0.3s ease forwards;
+    }
+
+    @keyframes fadeInLog {
       to { opacity: 1; }
     }
 
     /* DESKTOP */
     #desktop {
-      height: calc(100vh - 60px);
-      padding: 20px;
-      background: var(--bg-desktop);
-      display: grid;
-      grid-template-columns: repeat(auto-fill, 100px);
-      grid-auto-rows: 100px;
-      gap: 20px;
-      align-content: start;
-      overflow-y: auto;
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      display: none;
     }
 
-    .app-icon {
-      width: 100px;
-      height: 100px;
+    #desktop.active {
+      display: block;
+    }
+
+    #desktop-wallpaper {
+      position: absolute;
+      inset: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080"><defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:%23667eea;stop-opacity:0.2"/><stop offset="100%" style="stop-color:%23764ba2;stop-opacity:0.2"/></linearGradient></defs><rect width="1920" height="1080" fill="url(%23grad)"/></svg>');
+      background-size: cover;
+      pointer-events: none;
+    }
+
+    #windows-container {
+      position: absolute;
+      inset: 0 0 60px 0;
+    }
+
+    /* WINDOW */
+    .window {
+      position: absolute;
+      background: rgba(26, 26, 36, 0.95);
+      backdrop-filter: blur(20px);
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
       display: flex;
       flex-direction: column;
+      min-width: 400px;
+      min-height: 300px;
+    }
+
+    .window-titlebar {
+      background: rgba(102, 126, 234, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 12px 16px;
+      display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-      border-radius: 12px;
-      padding: 10px;
+      justify-content: space-between;
+      cursor: move;
       user-select: none;
     }
 
-    .app-icon:hover {
-      background: rgba(255,255,255,0.1);
-      transform: scale(1.05);
+    .window-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e8e8f0;
     }
 
-    .app-icon-image {
-      width: 50px;
-      height: 50px;
-      background: linear-gradient(135deg, var(--primary), #764ba2);
-      border-radius: 12px;
+    .window-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .window-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      border: none;
+      background: rgba(255, 255, 255, 0.05);
+      color: #e8e8f0;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background 0.2s ease;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      line-height: 1;
     }
 
-    .app-icon-label {
-      font-size: 12px;
-      text-align: center;
-      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    .window-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .window-btn.close:hover {
+      background: #ff5555;
+    }
+
+    .window-content {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
     }
 
     /* TASKBAR */
     #taskbar {
-      position: fixed;
+      position: absolute;
       bottom: 0;
       left: 0;
       right: 0;
       height: 60px;
-      background: var(--bg-glass);
+      background: rgba(26, 26, 36, 0.95);
       backdrop-filter: blur(20px);
-      border-top: 1px solid rgba(255,255,255,0.1);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
       display: flex;
       align-items: center;
       padding: 0 20px;
-      gap: 15px;
-      z-index: 9999;
+      gap: 12px;
     }
 
-    #start-button {
-      width: 40px;
-      height: 40px;
-      background: linear-gradient(135deg, var(--primary), #764ba2);
+    .taskbar-start {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 10px 20px;
       border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: transform 0.2s ease;
     }
 
-    #start-button:hover { transform: scale(1.1); }
+    .taskbar-start:hover {
+      transform: scale(1.05);
+    }
 
-    #taskbar-apps {
+    .taskbar-apps {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       flex: 1;
     }
 
     .taskbar-app {
-      height: 40px;
-      padding: 0 16px;
-      background: rgba(255,255,255,0.05);
+      background: rgba(255, 255, 255, 0.05);
+      border: none;
+      padding: 8px 16px;
       border-radius: 8px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
+      color: #e8e8f0;
       font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s ease;
     }
 
-    .taskbar-app:hover { background: rgba(255,255,255,0.1); }
-    .taskbar-app.active { background: rgba(102,126,234,0.3); }
+    .taskbar-app:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
 
-    #system-tray {
+    .taskbar-app.active {
+      background: rgba(102, 126, 234, 0.3);
+    }
+
+    .taskbar-system {
       display: flex;
-      gap: 15px;
       align-items: center;
+      gap: 16px;
       font-size: 13px;
+      color: #9090a8;
     }
 
     /* START MENU */
     #start-menu {
-      position: fixed;
+      position: absolute;
       bottom: 70px;
       left: 20px;
-      width: 500px;
-      height: 600px;
-      background: var(--bg-glass);
+      width: 400px;
+      max-height: 600px;
+      background: rgba(26, 26, 36, 0.98);
       backdrop-filter: blur(20px);
       border-radius: 12px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px;
       display: none;
-      flex-direction: column;
-      z-index: 10000;
-    }
-
-    #start-menu.active { display: flex; }
-
-    #start-menu-header {
-      padding: 20px;
-      border-bottom: 1px solid rgba(255,255,255,0.1);
-    }
-
-    #start-menu-search {
-      width: 100%;
-      padding: 12px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      color: white;
-      font-size: 14px;
-      outline: none;
-    }
-
-    #start-menu-apps {
-      flex: 1;
-      padding: 20px;
       overflow-y: auto;
+    }
+
+    #start-menu.visible {
+      display: block;
+      animation: slideUp 0.2s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .start-section {
+      margin-bottom: 24px;
+    }
+
+    .start-section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #9090a8;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      letter-spacing: 0.5px;
+    }
+
+    .start-apps {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 15px;
-    }
-
-    .start-menu-app {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      grid-template-columns: repeat(2, 1fr);
       gap: 8px;
-      padding: 15px;
+    }
+
+    .start-app {
+      background: rgba(255, 255, 255, 0.05);
+      border: none;
+      padding: 16px;
       border-radius: 8px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.2s ease;
+      text-align: left;
+      color: #e8e8f0;
     }
 
-    .start-menu-app:hover { background: rgba(255,255,255,0.1); }
-
-    #windows-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 60px;
-      pointer-events: none;
-      z-index: 1000;
+    .start-app:hover {
+      background: rgba(102, 126, 234, 0.2);
+      transform: translateY(-2px);
     }
 
-    #context-menu {
-      position: fixed;
-      background: var(--bg-glass);
-      backdrop-filter: blur(20px);
-      border-radius: 8px;
-      padding: 8px;
-      border: 1px solid rgba(255,255,255,0.1);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
-      display: none;
-      z-index: 10001;
-      min-width: 180px;
+    .start-app-name {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
     }
 
-    #context-menu.active { display: block; }
-
-    .context-menu-item {
-      padding: 10px 14px;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      font-size: 13px;
+    .start-app-desc {
+      font-size: 11px;
+      color: #9090a8;
     }
-
-    .context-menu-item:hover { background: rgba(255,255,255,0.1); }
-
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
-    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
   </style>
 </head>
 <body>
   <!-- BOOT SCREEN -->
   <div id="boot-screen">
-    <div id="power-button">
-      <sl-icon name="power" style="font-size: 40px;"></sl-icon>
-    </div>
+    <div class="boot-logo">NEXUS OS</div>
+    <button id="power-button">Power On</button>
     <div id="boot-logs"></div>
   </div>
 
   <!-- DESKTOP -->
-  <div id="desktop" style="display:none;"></div>
-
-  <!-- TASKBAR -->
-  <div id="taskbar" style="display:none;">
-    <div id="start-button">
-      <sl-icon name="grid-3x3" style="font-size: 20px;"></sl-icon>
+  <div id="desktop">
+    <div id="desktop-wallpaper"></div>
+    <div id="windows-container"></div>
+    
+    <!-- TASKBAR -->
+    <div id="taskbar">
+      <button class="taskbar-start" id="start-button">Start</button>
+      <div class="taskbar-apps" id="taskbar-apps"></div>
+      <div class="taskbar-system">
+        <span id="system-time">00:00</span>
+      </div>
     </div>
-    <div id="taskbar-apps"></div>
-    <div id="system-tray">
-      <sl-icon name="activity" class="system-icon"></sl-icon>
-      <sl-icon name="wifi" class="system-icon"></sl-icon>
-      <sl-icon name="volume-2" class="system-icon"></sl-icon>
-      <span id="clock">00:00</span>
+
+    <!-- START MENU -->
+    <div id="start-menu">
+      <div class="start-section">
+        <div class="start-section-title">Applications</div>
+        <div class="start-apps" id="start-apps-list"></div>
+      </div>
+      <div class="start-section">
+        <div class="start-section-title">System</div>
+        <div class="start-apps">
+          <button class="start-app" data-app="task-manager">
+            <div class="start-app-name">Task Manager</div>
+            <div class="start-app-desc">Monitor processes</div>
+          </button>
+          <button class="start-app" data-app="settings">
+            <div class="start-app-name">Settings</div>
+            <div class="start-app-desc">Configure system</div>
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- START MENU -->
-  <div id="start-menu">
-    <div id="start-menu-header">
-      <input type="text" id="start-menu-search" placeholder="Rechercher...">
-    </div>
-    <div id="start-menu-apps"></div>
-  </div>
+  <!-- LDSS SDK -->
+  <script src="https://ldss-e9kz.onrender.com/ldss-client.js"></script>
 
-  <!-- CONTEXT MENU -->
-  <div id="context-menu">
-    <div class="context-menu-item" onclick="BrowserOS.refreshDesktop()">
-      <sl-icon name="refresh-cw"></sl-icon> Actualiser
-    </div>
-    <div class="context-menu-item" onclick="BrowserOS.openApp('settings')">
-      <sl-icon name="settings"></sl-icon> Paramètres
-    </div>
-  </div>
-
-  <div id="windows-container"></div>
-
+  <!-- SYSTEM MODULES -->
   <script type="module">
-    import { LinuxKernel } from './system/linux-kernel.js';
-    
-    let kernel;
-    
+    // ═══════════════════════════════════════════════
+    // SYSTEM LOGGER
+    // ═══════════════════════════════════════════════
+    class SystemLogger {
+      constructor() {
+        this.logs = [];
+        this.maxLogs = 1000;
+      }
+
+      log(level, category, data) {
+        const entry = {
+          timestamp: new Date().toISOString(),
+          level,
+          category,
+          ...data
+        };
+
+        this.logs.push(entry);
+        if (this.logs.length > this.maxLogs) {
+          this.logs.shift();
+        }
+
+        const prefix = `[${level}] [${category}]`;
+        console.log(prefix, data);
+      }
+
+      info(category, data) { this.log('INFO', category, data); }
+      warn(category, data) { this.log('WARN', category, data); }
+      error(category, data) { this.log('ERROR', category, data); }
+
+      getStats() {
+        return {
+          total: this.logs.length,
+          byLevel: {
+            INFO: this.logs.filter(l => l.level === 'INFO').length,
+            WARN: this.logs.filter(l => l.level === 'WARN').length,
+            ERROR: this.logs.filter(l => l.level === 'ERROR').length
+          }
+        };
+      }
+
+      getLogs(limit = 100) {
+        return this.logs.slice(-limit).reverse();
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // WINDOW MANAGER
+    // ═══════════════════════════════════════════════
+    class WindowManager {
+      constructor(gateway) {
+        this.gateway = gateway;
+        this.windows = new Map();
+        this.zIndex = 100;
+        this.dragState = null;
+      }
+
+      create(options) {
+        const { title, width, height, pid } = options;
+
+        const win = document.createElement('div');
+        win.className = 'window';
+        win.dataset.pid = pid;
+        win.style.width = width + 'px';
+        win.style.height = height + 'px';
+        win.style.left = (window.innerWidth / 2 - width / 2) + 'px';
+        win.style.top = (window.innerHeight / 2 - height / 2 - 30) + 'px';
+        win.style.zIndex = this.zIndex++;
+
+        win.innerHTML = `
+          <div class="window-titlebar">
+            <span class="window-title">${title}</span>
+            <div class="window-controls">
+              <button class="window-btn minimize">−</button>
+              <button class="window-btn maximize">□</button>
+              <button class="window-btn close">×</button>
+            </div>
+          </div>
+          <div class="window-content"></div>
+        `;
+
+        const titlebar = win.querySelector('.window-titlebar');
+        const closeBtn = win.querySelector('.close');
+        const minimizeBtn = win.querySelector('.minimize');
+        const maximizeBtn = win.querySelector('.maximize');
+
+        // Close
+        closeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.gateway.closeApp(pid);
+        });
+
+        // Minimize
+        minimizeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.minimize(pid);
+        });
+
+        // Maximize
+        maximizeBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.maximize(pid);
+        });
+
+        // Drag
+        titlebar.addEventListener('mousedown', (e) => {
+          if (e.target.closest('.window-controls')) return;
+          
+          this.focus(pid);
+          
+          this.dragState = {
+            pid,
+            startX: e.clientX,
+            startY: e.clientY,
+            startLeft: win.offsetLeft,
+            startTop: win.offsetTop
+          };
+        });
+
+        // Focus on click
+        win.addEventListener('mousedown', () => {
+          this.focus(pid);
+        });
+
+        document.getElementById('windows-container').appendChild(win);
+
+        this.windows.set(pid, {
+          element: win,
+          state: 'normal',
+          originalBounds: null
+        });
+
+        return win;
+      }
+
+      setupDragListeners() {
+        document.addEventListener('mousemove', (e) => {
+          if (!this.dragState) return;
+
+          const { pid, startX, startY, startLeft, startTop } = this.dragState;
+          const win = this.windows.get(pid);
+          if (!win) return;
+
+          const deltaX = e.clientX - startX;
+          const deltaY = e.clientY - startY;
+
+          win.element.style.left = (startLeft + deltaX) + 'px';
+          win.element.style.top = (startTop + deltaY) + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+          this.dragState = null;
+        });
+      }
+
+      close(pid) {
+        const win = this.windows.get(pid);
+        if (!win) return;
+
+        win.element.remove();
+        this.windows.delete(pid);
+      }
+
+      minimize(pid) {
+        const win = this.windows.get(pid);
+        if (!win) return;
+
+        win.element.style.display = 'none';
+        win.state = 'minimized';
+
+        this.gateway.updateTaskbar();
+      }
+
+      restore(pid) {
+        const win = this.windows.get(pid);
+        if (!win) return;
+
+        win.element.style.display = 'flex';
+        win.state = 'normal';
+        this.focus(pid);
+
+        this.gateway.updateTaskbar();
+      }
+
+      maximize(pid) {
+        const win = this.windows.get(pid);
+        if (!win) return;
+
+        if (win.state === 'maximized') {
+          const bounds = win.originalBounds;
+          win.element.style.left = bounds.x + 'px';
+          win.element.style.top = bounds.y + 'px';
+          win.element.style.width = bounds.width + 'px';
+          win.element.style.height = bounds.height + 'px';
+          win.state = 'normal';
+        } else {
+          win.originalBounds = {
+            x: win.element.offsetLeft,
+            y: win.element.offsetTop,
+            width: win.element.offsetWidth,
+            height: win.element.offsetHeight
+          };
+
+          win.element.style.left = '0';
+          win.element.style.top = '0';
+          win.element.style.width = '100vw';
+          win.element.style.height = 'calc(100vh - 60px)';
+          win.state = 'maximized';
+        }
+      }
+
+      focus(pid) {
+        const win = this.windows.get(pid);
+        if (!win) return;
+
+        win.element.style.zIndex = this.zIndex++;
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // STORAGE MANAGER
+    // ═══════════════════════════════════════════════
+    class StorageManager {
+      constructor(gateway) {
+        this.gateway = gateway;
+        this.db = null;
+      }
+
+      async init() {
+        try {
+          this.db = new LDSS({
+            token: 'demo_token',
+            projectName: 'NexusOS',
+            apiUrl: 'https://ldss-e9kz.onrender.com'
+          });
+          this.gateway.logger.info('STORAGE', { message: 'LDSS initialized' });
+        } catch (error) {
+          this.gateway.logger.error('STORAGE', { message: 'LDSS init failed', error: error.message });
+        }
+      }
+
+      async set(key, value) {
+        try {
+          if (!this.db) return;
+          await this.db.store('system_storage', { key, value });
+          this.gateway.logger.info('STORAGE', { action: 'set', key });
+        } catch (error) {
+          this.gateway.logger.error('STORAGE', { action: 'set', key, error: error.message });
+        }
+      }
+
+      async get(key) {
+        try {
+          if (!this.db) return null;
+          const result = await this.db.get('system_storage', key);
+          return result?.value;
+        } catch (error) {
+          this.gateway.logger.error('STORAGE', { action: 'get', key, error: error.message });
+          return null;
+        }
+      }
+
+      getStats() {
+        return {
+          connected: !!this.db,
+          type: 'LDSS'
+        };
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // IPC ROUTER
+    // ═══════════════════════════════════════════════
+    class IPCRouter {
+      constructor(gateway) {
+        this.gateway = gateway;
+        this.listeners = new Map();
+      }
+
+      emit(event, payload) {
+        this.gateway.logger.info('IPC', { event, payload });
+
+        this.gateway.apps.forEach((app) => {
+          if (app.source && app.state === 'ready') {
+            app.source.postMessage({
+              type: 'ipc:event',
+              event,
+              payload
+            }, '*');
+          }
+        });
+      }
+
+      on(event, callback) {
+        if (!this.listeners.has(event)) {
+          this.listeners.set(event, []);
+        }
+        this.listeners.get(event).push(callback);
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // OS GATEWAY (Main Orchestrator)
+    // ═══════════════════════════════════════════════
+    class OSGateway {
+      constructor() {
+        this.apps = new Map();
+        this.nextPid = 1;
+        this.bootTime = null;
+
+        this.logger = new SystemLogger();
+        this.windowManager = new WindowManager(this);
+        this.storage = new StorageManager(this);
+        this.ipc = new IPCRouter(this);
+
+        this.initMessageListener();
+        this.windowManager.setupDragListeners();
+      }
+
+      initMessageListener() {
+        window.addEventListener('message', (e) => {
+          try {
+            const { type, pid, data } = e.data;
+            this.routeMessage(type, pid, data, e.source);
+          } catch (error) {
+            this.logger.error('IPC', { message: 'Message handling failed', error: error.message });
+          }
+        });
+      }
+
+      routeMessage(type, pid, data, source) {
+        const routes = {
+          'app:ready': () => this.handleAppReady(pid, source),
+          'app:close': () => this.closeApp(pid),
+          'app:minimize': () => this.windowManager.minimize(pid),
+          'app:maximize': () => this.windowManager.maximize(pid),
+          'app:update': (data) => this.handleAppUpdate(pid, data),
+          'storage:set': (data) => this.storage.set(data.key, data.value),
+          'storage:get': (data) => this.storage.get(data.key),
+          'ipc:emit': (data) => this.ipc.emit(data.event, data.payload),
+          'system:info:request': () => this.getSystemInfo(),
+          'process:list:request': () => this.getProcessList(),
+          'process:kill': (data) => this.closeApp(data.targetPid)
+        };
+
+        const handler = routes[type];
+        if (!handler) {
+          this.logger.warn('IPC', { message: 'Unknown message type', type });
+          return;
+        }
+
+        try {
+          const result = handler(data);
+
+          if (source && result instanceof Promise) {
+            result.then(res => {
+              source.postMessage({
+                type: `${type}:response`,
+                success: true,
+                data: res
+              }, '*');
+            }).catch(error => {
+              source.postMessage({
+                type: `${type}:response`,
+                success: false,
+                error: error.message
+              }, '*');
+            });
+          } else if (source) {
+            source.postMessage({
+              type: `${type}:response`,
+              success: true,
+              data: result
+            }, '*');
+          }
+        } catch (error) {
+          this.logger.error('IPC', { type, error: error.message });
+
+          if (source) {
+            source.postMessage({
+              type: `${type}:response`,
+              success: false,
+              error: error.message
+            }, '*');
+          }
+        }
+      }
+
+      async launchApp(appName, options = {}) {
+        const pid = this.nextPid++;
+
+        this.logger.info('APP', { action: 'launch', appName, pid });
+
+        try {
+          const windowEl = this.windowManager.create({
+            title: options.title || appName,
+            width: options.width || 800,
+            height: options.height || 600,
+            pid
+          });
+
+          const iframe = document.createElement('iframe');
+          iframe.src = `apps/${appName}/app.html`;
+          iframe.style.width = '100%';
+          iframe.style.height = '100%';
+          iframe.style.border = 'none';
+
+          windowEl.querySelector('.window-content').appendChild(iframe);
+
+          this.apps.set(pid, {
+            pid,
+            name: appName,
+            iframe,
+            windowEl,
+            state: 'launching',
+            launchedAt: Date.now(),
+            source: null
+          });
+
+          this.updateTaskbar();
+
+          await this.waitForAppReady(pid, 5000);
+
+          this.logger.info('APP', { action: 'ready', appName, pid });
+
+          return pid;
+
+        } catch (error) {
+          this.logger.error('APP', { action: 'launch_failed', appName, error: error.message });
+          this.closeApp(pid);
+          throw error;
+        }
+      }
+
+      waitForAppReady(pid, timeout = 5000) {
+        return new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            reject(new Error(`App ${pid} failed to initialize (timeout)`));
+          }, timeout);
+
+          const checkReady = () => {
+            const app = this.apps.get(pid);
+            if (app && app.state === 'ready') {
+              clearTimeout(timeoutId);
+              resolve();
+            } else {
+              setTimeout(checkReady, 100);
+            }
+          };
+
+          checkReady();
+        });
+      }
+
+      handleAppReady(pid, source) {
+        const app = this.apps.get(pid);
+        if (!app) return;
+
+        app.state = 'ready';
+        app.source = source;
+
+        source.postMessage({
+          type: 'kernel:config',
+          data: {
+            pid,
+            appName: app.name,
+            storage: { available: true },
+            ipc: { available: true }
+          }
+        }, '*');
+
+        this.logger.info('APP', { action: 'app_ready_confirmed', pid, name: app.name });
+      }
+
+      handleAppUpdate(pid, data) {
+        this.logger.info('APP', { action: 'update', pid, data });
+      }
+
+      closeApp(pid) {
+        const app = this.apps.get(pid);
+        if (!app) return;
+
+        this.logger.info('APP', { action: 'close', pid, name: app.name });
+
+        this.windowManager.close(pid);
+
+        if (app.iframe && app.iframe.parentNode) {
+          app.iframe.parentNode.removeChild(app.iframe);
+        }
+
+        this.apps.delete(pid);
+        this.updateTaskbar();
+      }
+
+      updateTaskbar() {
+        const taskbarApps = document.getElementById('taskbar-apps');
+        taskbarApps.innerHTML = '';
+
+        this.apps.forEach((app) => {
+          const btn = document.createElement('button');
+          btn.className = 'taskbar-app';
+          btn.textContent = app.name;
+          btn.dataset.pid = app.pid;
+
+          const win = this.windowManager.windows.get(app.pid);
+          if (win && win.state !== 'minimized') {
+            btn.classList.add('active');
+          }
+
+          btn.addEventListener('click', () => {
+            if (win.state === 'minimized') {
+              this.windowManager.restore(app.pid);
+            } else {
+              this.windowManager.focus(app.pid);
+            }
+          });
+
+          taskbarApps.appendChild(btn);
+        });
+      }
+
+      getSystemInfo() {
+        return {
+          uptime: Date.now() - this.bootTime,
+          apps: {
+            running: Array.from(this.apps.values()).filter(a => a.state === 'ready').length,
+            total: this.apps.size
+          },
+          logs: this.logger.getStats(),
+          storage: this.storage.getStats()
+        };
+      }
+
+      getProcessList() {
+        return Array.from(this.apps.values()).map(app => ({
+          pid: app.pid,
+          name: app.name,
+          state: app.state,
+          launchedAt: app.launchedAt
+        }));
+      }
+
+      async boot() {
+        this.bootTime = Date.now();
+
+        this.logger.info('SYSTEM', { message: 'Booting NEXUS OS...' });
+
+        await this.storage.init();
+
+        this.logger.info('SYSTEM', { message: 'NEXUS OS ready' });
+      }
+    }
+
+    // ═══════════════════════════════════════════════
     // BOOT SEQUENCE
+    // ═══════════════════════════════════════════════
+    
+    const AVAILABLE_APPS = [
+      { name: 'calculator', title: 'Calculator', desc: 'Basic calculator' },
+      { name: 'terminal', title: 'Terminal', desc: 'Command line interface' },
+      { name: 'notepad', title: 'Notepad', desc: 'Text editor' },
+      { name: 'file-manager', title: 'File Manager', desc: 'Browse files' }
+    ];
+
+    let gateway;
+
     async function bootSequence() {
       const powerBtn = document.getElementById('power-button');
       const bootLogs = document.getElementById('boot-logs');
-      
-      powerBtn.classList.add('booting');
+      const bootScreen = document.getElementById('boot-screen');
+      const desktop = document.getElementById('desktop');
+
+      powerBtn.style.display = 'none';
       bootLogs.classList.add('visible');
-      
+
       const logs = [
         '[BIOS] Initializing system...',
-        '[BIOS] CPU detected: ' + (navigator.hardwareConcurrency || 4) + ' cores',
-        '[BIOS] Memory: ' + (navigator.deviceMemory || 4) + ' GB',
-        '[BOOT] Loading NEXUS Kernel...',
-        '[KERNEL] Initializing subsystems...',
-        '[KERNEL] Mounting filesystems...',
-        '[KERNEL] Starting init process (PID 1)...',
-        '[KERNEL] Loading device drivers...',
-        '[KERNEL] Setting up IPC...',
-        '[KERNEL] Kernel ready',
-        '[INIT] Starting desktop environment...'
+        '[BIOS] Memory check: OK',
+        '[BIOS] Boot device: Browser',
+        '[KERNEL] Loading NEXUS OS Gateway...',
+        '[KERNEL] Initializing Window Manager...',
+        '[KERNEL] Initializing Storage Manager...',
+        '[KERNEL] Initializing IPC Router...',
+        '[KERNEL] System modules loaded',
+        '[INIT] Starting desktop environment...',
+        '[INIT] Loading applications registry...',
+        '[INIT] System ready'
       ];
-      
+
       for (const log of logs) {
         await new Promise(resolve => setTimeout(resolve, 150));
         const logEl = document.createElement('div');
@@ -381,64 +975,109 @@
         bootLogs.appendChild(logEl);
         bootLogs.scrollTop = bootLogs.scrollHeight;
       }
-      
+
       await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Boot kernel
-      kernel = new LinuxKernel();
-      window.BrowserOS = kernel;
-      await kernel.boot();
-      
-      // Show desktop
-      document.getElementById('boot-screen').classList.add('hidden');
-      document.getElementById('desktop').style.display = 'grid';
-      document.getElementById('taskbar').style.display = 'flex';
-      
-      // Update clock
-      function updateClock() {
-        const now = new Date();
-        document.getElementById('clock').textContent = 
-          String(now.getHours()).padStart(2,'0') + ':' + 
-          String(now.getMinutes()).padStart(2,'0');
-      }
+
+      gateway = new OSGateway();
+      await gateway.boot();
+
+      bootScreen.classList.add('hidden');
+      desktop.classList.add('active');
+
+      initDesktop();
+    }
+
+    function initDesktop() {
       updateClock();
       setInterval(updateClock, 1000);
+
+      const startButton = document.getElementById('start-button');
+      const startMenu = document.getElementById('start-menu');
+
+      startButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        startMenu.classList.toggle('visible');
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!startMenu.contains(e.target) && e.target !== startButton) {
+          startMenu.classList.remove('visible');
+        }
+      });
+
+      populateStartMenu();
     }
-    
-    // Power button click
-    document.getElementById('power-button').addEventListener('click', bootSequence);
-    
-    // Start button
-    document.getElementById('start-button').addEventListener('click', () => {
-      document.getElementById('start-menu').classList.toggle('active');
-    });
-    
-    // Close menus on outside click
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('#start-menu') && !e.target.closest('#start-button')) {
-        document.getElementById('start-menu').classList.remove('active');
-      }
-      if (!e.target.closest('#context-menu')) {
-        document.getElementById('context-menu').classList.remove('active');
-      }
-    });
-    
-    // Context menu
-    document.getElementById('desktop').addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      const menu = document.getElementById('context-menu');
-      menu.style.left = e.clientX + 'px';
-      menu.style.top = e.clientY + 'px';
-      menu.classList.add('active');
-    });
-    
-    // Search
-    document.getElementById('start-menu-search').addEventListener('input', (e) => {
-      const query = e.target.value.toLowerCase();
-      document.querySelectorAll('.start-menu-app').forEach(app => {
-        app.style.display = app.dataset.name.toLowerCase().includes(query) ? 'flex' : 'none';
+
+    function populateStartMenu() {
+      const appsList = document.getElementById('start-apps-list');
+      appsList.innerHTML = '';
+
+      AVAILABLE_APPS.forEach(app => {
+        const btn = document.createElement('button');
+        btn.className = 'start-app';
+        btn.innerHTML = `
+          <div class="start-app-name">${app.title}</div>
+          <div class="start-app-desc">${app.desc}</div>
+        `;
+
+        btn.addEventListener('click', async () => {
+          document.getElementById('start-menu').classList.remove('visible');
+          try {
+            await gateway.launchApp(app.name, { title: app.title });
+          } catch (error) {
+            console.error('[ERROR] Failed to launch app:', error);
+          }
+        });
+
+        appsList.appendChild(btn);
+      });
+
+      const systemApps = document.querySelectorAll('#start-menu .start-app[data-app]');
+      systemApps.forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const appName = btn.dataset.app;
+          document.getElementById('start-menu').classList.remove('visible');
+          try {
+            await gateway.launchApp(appName, { title: btn.querySelector('.start-app-name').textContent });
+          } catch (error) {
+            console.error('[ERROR] Failed to launch app:', error);
+          }
+        });
+      });
+    }
+
+    function updateClock() {
+      const now = new Date();
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      document.getElementById('system-time').textContent = `${hours}:${minutes}`;
+    }
+
+    // ═══════════════════════════════════════════════
+    // ENTRY POINT
+    // ═══════════════════════════════════════════════
+
+    document.getElementById('power-button').addEventListener('click', () => {
+      console.log('[DEBUG] Power button clicked');
+      bootSequence().catch(error => {
+        console.error('[DEBUG] Boot failed:', error);
       });
     });
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('[SW] Service Worker registered:', registration.scope);
+          })
+          .catch((error) => {
+            console.error('[SW] Service Worker registration failed:', error);
+          });
+      });
+    }
+
+    console.log('[NEXUS OS] System loaded. Click Power On to boot.');
   </script>
 </body>
 </html>
