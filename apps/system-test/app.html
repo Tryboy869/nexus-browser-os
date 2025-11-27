@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: rgba(20, 20, 30, 0.95);
+      color: #e8e8f0;
+      padding: 20px;
+      height: 100vh;
+      overflow-y: auto;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      color: #667eea;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .test-controls {
+      margin-bottom: 30px;
+      display: flex;
+      gap: 15px;
+    }
+
+    button {
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .test-section {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .test-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .test-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #667eea;
+    }
+
+    .test-status {
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .test-status.pending {
+      background: rgba(255, 255, 255, 0.1);
+      color: #9090a8;
+    }
+
+    .test-status.running {
+      background: rgba(255, 184, 108, 0.2);
+      color: #ffb86c;
+    }
+
+    .test-status.success {
+      background: rgba(112, 214, 163, 0.2);
+      color: #70d6a3;
+    }
+
+    .test-status.failed {
+      background: rgba(255, 85, 85, 0.2);
+      color: #ff5555;
+    }
+
+    .test-details {
+      font-size: 13px;
+      line-height: 1.8;
+      color: #9090a8;
+    }
+
+    .test-metric {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .test-metric:last-child {
+      border-bottom: none;
+    }
+
+    .metric-value {
+      color: #e8e8f0;
+      font-weight: 600;
+    }
+
+    .test-logs {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      padding: 15px;
+      margin-top: 15px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      font-size: 12px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .log-entry {
+      margin-bottom: 4px;
+    }
+
+    .log-success {
+      color: #70d6a3;
+    }
+
+    .log-error {
+      color: #ff5555;
+    }
+
+    .log-info {
+      color: #9090a8;
+    }
+
+    .summary {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+      border-radius: 12px;
+      padding: 25px;
+      margin-top: 30px;
+      border: 1px solid rgba(102, 126, 234, 0.3);
+    }
+
+    .summary-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .summary-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .summary-stat {
+      text-align: center;
+    }
+
+    .summary-value {
+      font-size: 36px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .summary-label {
+      font-size: 12px;
+      color: #9090a8;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+  <h1>🔬 System Diagnostics</h1>
+
+  <div class="test-controls">
+    <button id="run-all" onclick="runAllTests()">Run All Tests</button>
+    <button id="run-quick" onclick="runQuickTests()">Quick Test</button>
+    <button id="clear-logs" onclick="clearLogs()">Clear Logs</button>
+  </div>
+
+  <div id="tests-container">
+    <div class="test-section" id="test-boot">
+      <div class="test-header">
+        <div class="test-title">Boot System</div>
+        <div class="test-status pending">Pending</div>
+      </div>
+      <div class="test-details">
+        <div class="test-metric">
+          <span>Boot Time</span>
+          <span class="metric-value" id="boot-time">—</span>
+        </div>
+        <div class="test-metric">
+          <span>Kernel Loaded</span>
+          <span class="metric-value" id="kernel-loaded">—</span>
+        </div>
+      </div>
+      <div class="test-logs" id="boot-logs"></div>
+    </div>
+
+    <div class="test-section" id="test-cpu">
+      <div class="test-header">
+        <div class="test-title">CPU Manager</div>
+        <div class="test-status pending">Pending</div>
+      </div>
+      <div class="test-details">
+        <div class="test-metric">
+          <span>Cores Available</span>
+          <span class="metric-value" id="cpu-cores">—</span>
+        </div>
+        <div class="test-metric">
+          <span>Tasks Completed</span>
+          <span class="metric-value" id="cpu-tasks">—</span>
+        </div>
+        <div class="test-metric">
+          <span>Average Time</span>
+          <span class="metric-value" id="cpu-time">—</span>
+        </div>
+      </div>
+      <div class="test-logs" id="cpu-logs"></div>
+    </div>
+
+    <div class="test-section" id="test-fs">
+      <div class="test-header">
+        <div class="test-title">File System</div>
+        <div class="test-status pending">Pending</div>
+      </div>
+      <div class="test-details">
+        <div class="test-metric">
+          <span>Read/Write</span>
+          <span class="metric-value" id="fs-rw">—</span>
+        </div>
+        <div class="test-metric">
+          <span>Storage Used</span>
+          <span class="metric-value" id="fs-used">—</span>
+        </div>
+      </div>
+      <div class="test-logs" id="fs-logs"></div>
+    </div>
+
+    <div class="test-section" id="test-storage">
+      <div class="test-header">
+        <div class="test-title">LDSS Storage</div>
+        <div class="test-status pending">Pending</div>
+      </div>
+      <div class="test-details">
+        <div class="test-metric">
+          <span>LDSS Initialized</span>
+          <span class="metric-value" id="ldss-init">—</span>
+        </div>
+        <div class="test-metric">
+          <span>Quota</span>
+          <span class="metric-value" id="ldss-quota">—</span>
+        </div>
+      </div>
+      <div class="test-logs" id="storage-logs"></div>
+    </div>
+
+    <div class="test-section" id="test-windows">
+      <div class="test-header">
+        <div class="test-title">Window Manager</div>
+        <div class="test-status pending">Pending</div>
+      </div>
+      <div class="test-details">
+        <div class="test-metric">
+          <span>Windows Active</span>
+          <span class="metric-value" id="windows-active">—</span>
+        </div>
+        <div class="test-metric">
+          <span>Z-Index Range</span>
+          <span class="metric-value" id="windows-zindex">—</span>
+        </div>
+      </div>
+      <div class="test-logs" id="windows-logs"></div>
+    </div>
+
+    <div class="test-section" id="test-ipc">
+      <div class="test-header">
+        <div class="test-title">IPC System</div>
+        <div class="test-status pending">Pending</div>
+      </div>
+      <div class="test-details">
+        <div class="test-metric">
+          <span>Events Registered</span>
+          <span class="metric-value" id="ipc-events">—</span>
+        </div>
+        <div class="test-metric">
+          <span>Communication Test</span>
+          <span class="metric-value" id="ipc-test">—</span>
+        </div>
+      </div>
+      <div class="test-logs" id="ipc-logs"></div>
+    </div>
+  </div>
+
+  <div class="summary" id="summary" style="display: none;">
+    <div class="summary-title">Test Results Summary</div>
+    <div class="summary-stats">
+      <div class="summary-stat">
+        <div class="summary-value" style="color: #70d6a3;" id="summary-passed">0</div>
+        <div class="summary-label">Passed</div>
+      </div>
+      <div class="summary-stat">
+        <div class="summary-value" style="color: #ff5555;" id="summary-failed">0</div>
+        <div class="summary-label">Failed</div>
+      </div>
+      <div class="summary-stat">
+        <div class="summary-value" style="color: #667eea;" id="summary-time">0s</div>
+        <div class="summary-label">Total Time</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let testResults = {
+      passed: 0,
+      failed: 0,
+      total: 0,
+      startTime: 0
+    };
+
+    async function runAllTests() {
+      document.getElementById('run-all').disabled = true;
+      testResults = { passed: 0, failed: 0, total: 0, startTime: Date.now() };
+
+      await testBoot();
+      await testCPU();
+      await testFileSystem();
+      await testStorage();
+      await testWindowManager();
+      await testIPC();
+
+      showSummary();
+      document.getElementById('run-all').disabled = false;
+    }
+
+    async function runQuickTests() {
+      document.getElementById('run-quick').disabled = true;
+      testResults = { passed: 0, failed: 0, total: 0, startTime: Date.now() };
+
+      await testBoot();
+      await testCPU();
+      await testFileSystem();
+
+      showSummary();
+      document.getElementById('run-quick').disabled = false;
+    }
+
+    async function testBoot() {
+      updateStatus('test-boot', 'running');
+      addLog('boot-logs', 'Testing boot system...', 'info');
+
+      try {
+        if (window.parent && window.parent.BrowserOS) {
+          const sys = window.parent.BrowserOS.getSystemInfo();
+          
+          document.getElementById('boot-time').textContent = sys.uptime + 'ms';
+          document.getElementById('kernel-loaded').textContent = '✓ Yes';
+          
+          addLog('boot-logs', '✓ Kernel initialized', 'success');
+          addLog('boot-logs', `✓ Uptime: ${sys.uptime}ms`, 'success');
+          
+          updateStatus('test-boot', 'success');
+          testResults.passed++;
+        } else {
+          throw new Error('BrowserOS not accessible');
+        }
+      } catch (error) {
+        addLog('boot-logs', `✗ Error: ${error.message}`, 'error');
+        updateStatus('test-boot', 'failed');
+        testResults.failed++;
+      }
+      
+      testResults.total++;
+      await delay(500);
+    }
+
+    async function testCPU() {
+      updateStatus('test-cpu', 'running');
+      addLog('cpu-logs', 'Testing CPU manager...', 'info');
+
+      try {
+        const cpu = window.parent.BrowserOS.cpuManager;
+        const stats = cpu.getStats();
+        
+        document.getElementById('cpu-cores').textContent = stats.cores;
+        document.getElementById('cpu-tasks').textContent = stats.tasksCompleted;
+        document.getElementById('cpu-time').textContent = stats.averageTime.toFixed(2) + 'ms';
+        
+        addLog('cpu-logs', `✓ ${stats.cores} cores detected`, 'success');
+        
+        // Run a test task
+        addLog('cpu-logs', 'Running test calculation...', 'info');
+        const result = await cpu.execute('fibonacci', 20);
+        addLog('cpu-logs', `✓ Fibonacci(20) = ${result}`, 'success');
+        
+        updateStatus('test-cpu', 'success');
+        testResults.passed++;
+      } catch (error) {
+        addLog('cpu-logs', `✗ Error: ${error.message}`, 'error');
+        updateStatus('test-cpu', 'failed');
+        testResults.failed++;
+      }
+      
+      testResults.total++;
+      await delay(500);
+    }
+
+    async function testFileSystem() {
+      updateStatus('test-fs', 'running');
+      addLog('fs-logs', 'Testing file system...', 'info');
+
+      try {
+        const fs = window.parent.BrowserOS.filesystem;
+        
+        // Test write
+        addLog('fs-logs', 'Writing test file...', 'info');
+        await fs.writeFile('/test-file.txt', 'Test content');
+        addLog('fs-logs', '✓ Write successful', 'success');
+        
+        // Test read
+        addLog('fs-logs', 'Reading test file...', 'info');
+        const content = await fs.readFile('/test-file.txt');
+        addLog('fs-logs', '✓ Read successful', 'success');
+        
+        // Test delete
+        addLog('fs-logs', 'Deleting test file...', 'info');
+        await fs.unlink('/test-file.txt');
+        addLog('fs-logs', '✓ Delete successful', 'success');
+        
+        // Get quota
+        const quota = await fs.getQuota();
+        document.getElementById('fs-rw').textContent = '✓ OK';
+        document.getElementById('fs-used').textContent = formatSize(quota.used);
+        
+        updateStatus('test-fs', 'success');
+        testResults.passed++;
+      } catch (error) {
+        addLog('fs-logs', `✗ Error: ${error.message}`, 'error');
+        updateStatus('test-fs', 'failed');
+        testResults.failed++;
+      }
+      
+      testResults.total++;
+      await delay(500);
+    }
+
+    async function testStorage() {
+      updateStatus('test-storage', 'running');
+      addLog('storage-logs', 'Testing LDSS storage...', 'info');
+
+      try {
+        const ldss = window.parent.BrowserOS.ldssManager;
+        
+        document.getElementById('ldss-init').textContent = ldss.initialized ? '✓ Yes' : '✗ No';
+        
+        const quota = await ldss.getStorageInfo();
+        document.getElementById('ldss-quota').textContent = 
+          `${formatSize(quota.used)} / ${formatSize(quota.total)}`;
+        
+        addLog('storage-logs', `✓ Storage: ${formatSize(quota.used)} used`, 'success');
+        addLog('storage-logs', `✓ Available: ${formatSize(quota.available)}`, 'success');
+        
+        updateStatus('test-storage', 'success');
+        testResults.passed++;
+      } catch (error) {
+        addLog('storage-logs', `✗ Error: ${error.message}`, 'error');
+        updateStatus('test-storage', 'failed');
+        testResults.failed++;
+      }
+      
+      testResults.total++;
+      await delay(500);
+    }
+
+    async function testWindowManager() {
+      updateStatus('test-windows', 'running');
+      addLog('windows-logs', 'Testing window manager...', 'info');
+
+      try {
+        const wm = window.parent.BrowserOS.windowManager;
+        const windows = wm.getAllWindows();
+        
+        document.getElementById('windows-active').textContent = windows.length;
+        document.getElementById('windows-zindex').textContent = 
+          `1000-${wm.zIndexCounter}`;
+        
+        addLog('windows-logs', `✓ ${windows.length} windows active`, 'success');
+        addLog('windows-logs', `✓ Z-Index counter: ${wm.zIndexCounter}`, 'success');
+        
+        updateStatus('test-windows', 'success');
+        testResults.passed++;
+      } catch (error) {
+        addLog('windows-logs', `✗ Error: ${error.message}`, 'error');
+        updateStatus('test-windows', 'failed');
+        testResults.failed++;
+      }
+      
+      testResults.total++;
+      await delay(500);
+    }
+
+    async function testIPC() {
+      updateStatus('test-ipc', 'running');
+      addLog('ipc-logs', 'Testing IPC system...', 'info');
+
+      try {
+        const ipc = window.parent.BrowserOS.ipc;
+        const stats = ipc.getStats();
+        
+        document.getElementById('ipc-events').textContent = Object.keys(stats).length;
+        
+        // Test communication
+        let testPassed = false;
+        ipc.once('test-event', () => {
+          testPassed = true;
+        });
+        
+        ipc.emit('test-event', { test: true });
+        
+        await delay(100);
+        
+        document.getElementById('ipc-test').textContent = testPassed ? '✓ OK' : '✗ Failed';
+        
+        addLog('ipc-logs', `✓ ${Object.keys(stats).length} events registered`, 'success');
+        addLog('ipc-logs', testPassed ? '✓ Communication test passed' : '✗ Communication test failed', 
+          testPassed ? 'success' : 'error');
+        
+        updateStatus('test-ipc', testPassed ? 'success' : 'failed');
+        testPassed ? testResults.passed++ : testResults.failed++;
+      } catch (error) {
+        addLog('ipc-logs', `✗ Error: ${error.message}`, 'error');
+        updateStatus('test-ipc', 'failed');
+        testResults.failed++;
+      }
+      
+      testResults.total++;
+      await delay(500);
+    }
+
+    function updateStatus(testId, status) {
+      const section = document.getElementById(testId);
+      const statusEl = section.querySelector('.test-status');
+      statusEl.className = `test-status ${status}`;
+      statusEl.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+    }
+
+    function addLog(logsId, message, type) {
+      const logsEl = document.getElementById(logsId);
+      const entry = document.createElement('div');
+      entry.className = `log-entry log-${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logsEl.appendChild(entry);
+      logsEl.scrollTop = logsEl.scrollHeight;
+    }
+
+    function showSummary() {
+      const totalTime = ((Date.now() - testResults.startTime) / 1000).toFixed(1);
+      
+      document.getElementById('summary-passed').textContent = testResults.passed;
+      document.getElementById('summary-failed').textContent = testResults.failed;
+      document.getElementById('summary-time').textContent = totalTime + 's';
+      document.getElementById('summary').style.display = 'block';
+    }
+
+    function clearLogs() {
+      document.querySelectorAll('.test-logs').forEach(el => el.innerHTML = '');
+      document.querySelectorAll('.test-status').forEach(el => {
+        el.className = 'test-status pending';
+        el.textContent = 'Pending';
+      });
+      document.querySelectorAll('.metric-value').forEach(el => el.textContent = '—');
+      document.getElementById('summary').style.display = 'none';
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+      return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+    }
+
+    function delay(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    console.log('[System Test] Ready');
+  </script>
+</body>
+</html>
