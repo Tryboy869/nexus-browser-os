@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Manager</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a24;
+      color: #e8e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .header {
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 16px 20px;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .header-info {
+      font-size: 13px;
+      color: #9090a8;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 16px;
+      border-left: 3px solid #667eea;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #9090a8;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-size: 24px;
+      font-weight: 600;
+      color: #e8e8f0;
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #9090a8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .process-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .process-table th {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 12px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 600;
+      color: #9090a8;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .process-table td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 13px;
+    }
+
+    .process-table tr:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .process-status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .process-status.ready {
+      background: rgba(112, 214, 163, 0.2);
+      color: #70d6a3;
+    }
+
+    .process-status.launching {
+      background: rgba(255, 184, 108, 0.2);
+      color: #ffb86c;
+    }
+
+    .kill-btn {
+      background: rgba(255, 85, 85, 0.2);
+      border: none;
+      color: #ff5555;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .kill-btn:hover {
+      background: rgba(255, 85, 85, 0.3);
+    }
+
+    .refresh-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      margin-bottom: 16px;
+    }
+
+    .refresh-btn:hover {
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: #9090a8;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Task Manager</h1>
+    <div class="header-info">System monitoring and process management</div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Running Processes</div>
+      <div class="stat-value" id="stat-processes">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">System Uptime</div>
+      <div class="stat-value" id="stat-uptime">0s</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Memory Usage</div>
+      <div class="stat-value" id="stat-memory">0 MB</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <button class="refresh-btn" id="refresh-btn">Refresh</button>
+    <div class="section-title">Active Processes</div>
+    <table class="process-table" id="process-table">
+      <thead>
+        <tr>
+          <th>PID</th>
+          <th>Name</th>
+          <th>State</th>
+          <th>Launched</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="process-tbody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════
+    // TASK MANAGER APP
+    // ═══════════════════════════════════════════════
+
+    class TaskManager {
+      constructor() {
+        this.pid = null;
+        this.processes = [];
+        this.systemInfo = null;
+
+        this.init();
+      }
+
+      init() {
+        this.setupEventListeners();
+        this.notifyParentReady();
+        this.startAutoRefresh();
+
+        window.addEventListener('message', (e) => {
+          const { type, data } = e.data;
+
+          if (type === 'kernel:config') {
+            this.pid = data.pid;
+            console.log('[TaskManager] Received config, PID:', this.pid);
+            this.requestSystemInfo();
+          } else if (type === 'system:info:response') {
+            this.systemInfo = data;
+            this.updateDisplay();
+          } else if (type === 'process:list:response') {
+            this.processes = data || [];
+            this.updateProcessTable();
+          }
+        });
+      }
+
+      setupEventListeners() {
+        document.getElementById('refresh-btn').addEventListener('click', () => {
+          this.requestSystemInfo();
+        });
+      }
+
+      startAutoRefresh() {
+        setInterval(() => {
+          this.requestSystemInfo();
+        }, 2000);
+      }
+
+      requestSystemInfo() {
+        // Request system info from parent
+        window.parent.postMessage({
+          type: 'system:info:request',
+          pid: this.pid
+        }, '*');
+
+        // Request process list
+        window.parent.postMessage({
+          type: 'process:list:request',
+          pid: this.pid
+        }, '*');
+      }
+
+      updateDisplay() {
+        if (!this.systemInfo) return;
+
+        // Update stats
+        document.getElementById('stat-processes').textContent = this.systemInfo.apps?.running || 0;
+        
+        const uptime = Math.floor((this.systemInfo.uptime || 0) / 1000);
+        document.getElementById('stat-uptime').textContent = this.formatUptime(uptime);
+
+        const memory = performance.memory?.usedJSHeapSize;
+        if (memory) {
+          document.getElementById('stat-memory').textContent = (memory / 1048576).toFixed(2) + ' MB';
+        }
+      }
+
+      updateProcessTable() {
+        const tbody = document.getElementById('process-tbody');
+
+        if (this.processes.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="5" class="empty-state">No processes running</td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = this.processes.map(proc => `
+          <tr>
+            <td>${proc.pid}</td>
+            <td>${proc.name}</td>
+            <td>
+              <span class="process-status ${proc.state}">
+                ${proc.state}
+              </span>
+            </td>
+            <td>${this.formatTime(proc.launchedAt)}</td>
+            <td>
+              ${proc.pid !== 1 ? `<button class="kill-btn" data-pid="${proc.pid}">Kill</button>` : '<span style="color: #9090a8;">System</span>'}
+            </td>
+          </tr>
+        `).join('');
+
+        // Attach kill button listeners
+        tbody.querySelectorAll('.kill-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const pid = parseInt(btn.dataset.pid);
+            this.killProcess(pid);
+          });
+        });
+      }
+
+      killProcess(pid) {
+        if (confirm(`Kill process ${pid}?`)) {
+          console.log('[TaskManager] Killing process:', pid);
+          window.parent.postMessage({
+            type: 'process:kill',
+            pid: this.pid,
+            data: { targetPid: pid }
+          }, '*');
+
+          setTimeout(() => {
+            this.requestSystemInfo();
+          }, 500);
+        }
+      }
+
+      formatUptime(seconds) {
+        if (seconds < 60) return `${seconds}s`;
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
+        return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+      }
+
+      formatTime(timestamp) {
+        if (!timestamp) return 'N/A';
+        const elapsed = Date.now() - timestamp;
+        const seconds = Math.floor(elapsed / 1000);
+        if (seconds < 60) return `${seconds}s ago`;
+        if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+        return `${Math.floor(seconds / 3600)}h ago`;
+      }
+
+      notifyParentReady() {
+        console.log('[TaskManager] Notifying parent: app ready');
+        window.parent.postMessage({
+          type: 'app:ready',
+          pid: this.pid
+        }, '*');
+      }
+    }
+
+    // Initialize task manager
+    const taskManager = new TaskManager();
+    console.log('[TaskManager] App initialized');
+  </script>
+</body>
+</html>
