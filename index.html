@@ -717,10 +717,7 @@
           'app:update': (data) => this.handleAppUpdate(pid, data),
           'storage:set': (data) => this.storage.set(data.key, data.value),
           'storage:get': (data) => this.storage.get(data.key),
-          'ipc:emit': (data) => this.ipc.emit(data.event, data.payload),
-          'system:info:request': () => this.getSystemInfo(),
-          'process:list:request': () => this.getProcessList(),
-          'process:kill': (data) => this.closeApp(data.targetPid)
+          'ipc:emit': (data) => this.ipc.emit(data.event, data.payload)
         };
 
         const handler = routes[type];
@@ -911,15 +908,6 @@
         };
       }
 
-      getProcessList() {
-        return Array.from(this.apps.values()).map(app => ({
-          pid: app.pid,
-          name: app.name,
-          state: app.state,
-          launchedAt: app.launchedAt
-        }));
-      }
-
       async boot() {
         this.bootTime = Date.now();
 
@@ -1063,19 +1051,6 @@
         console.error('[DEBUG] Boot failed:', error);
       });
     });
-
-    // Register Service Worker
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then((registration) => {
-            console.log('[SW] Service Worker registered:', registration.scope);
-          })
-          .catch((error) => {
-            console.error('[SW] Service Worker registration failed:', error);
-          });
-      });
-    }
 
     console.log('[NEXUS OS] System loaded. Click Power On to boot.');
   </script>
