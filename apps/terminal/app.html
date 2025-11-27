@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,738 +12,482 @@
     }
 
     body {
-      font-family: 'Monaco', 'Courier New', monospace;
+      font-family: 'Courier New', 'Monaco', monospace;
       background: #0a0a0f;
-      color: #00ff00;
+      color: #70d6a3;
       height: 100vh;
       overflow: hidden;
+    }
+
+    .terminal {
+      height: 100vh;
+      padding: 16px;
+      overflow-y: auto;
       display: flex;
       flex-direction: column;
     }
 
-    #output {
-      flex: 1;
-      overflow-y: auto;
-      padding: 15px;
-      line-height: 1.8;
-      font-size: 13px;
-    }
-
     .terminal-line {
       margin-bottom: 4px;
+      line-height: 1.5;
     }
 
-    .prompt {
+    .terminal-prompt {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .prompt-symbol {
       color: #667eea;
       font-weight: bold;
     }
 
-    .error {
-      color: #ff5555;
-    }
-
-    .success {
-      color: #70d6a3;
-    }
-
-    .warning {
-      color: #ffb86c;
-    }
-
-    .info {
+    .prompt-path {
       color: #9090a8;
     }
 
-    .file {
-      color: #e8e8f0;
-    }
-
-    .dir {
-      color: #667eea;
-      font-weight: bold;
-    }
-
-    #input-container {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 15px;
-      background: rgba(255, 255, 255, 0.02);
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    #prompt-display {
-      color: #667eea;
-      font-weight: bold;
-      flex-shrink: 0;
-    }
-
-    #input {
+    .terminal-input {
       flex: 1;
       background: transparent;
       border: none;
-      color: #00ff00;
-      font-family: inherit;
-      font-size: 13px;
       outline: none;
+      color: #70d6a3;
+      font-family: inherit;
+      font-size: 14px;
     }
 
-    ::-webkit-scrollbar {
+    .terminal-output {
+      color: #e8e8f0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .terminal-error {
+      color: #ff5555;
+    }
+
+    .terminal-success {
+      color: #70d6a3;
+    }
+
+    .terminal-info {
+      color: #6b8cff;
+    }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 16px;
+      background: #70d6a3;
+      animation: blink 1s infinite;
+      margin-left: 2px;
+    }
+
+    @keyframes blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+
+    .terminal::-webkit-scrollbar {
       width: 8px;
     }
 
-    ::-webkit-scrollbar-track {
+    .terminal::-webkit-scrollbar-track {
       background: rgba(255, 255, 255, 0.05);
     }
 
-    ::-webkit-scrollbar-thumb {
-      background: rgba(0, 255, 0, 0.3);
+    .terminal::-webkit-scrollbar-thumb {
+      background: rgba(102, 126, 234, 0.3);
       border-radius: 4px;
     }
 
-    .table {
-      display: table;
-      width: 100%;
-      margin: 5px 0;
-    }
-
-    .table-row {
-      display: table-row;
-    }
-
-    .table-cell {
-      display: table-cell;
-      padding: 4px 15px 4px 0;
+    .terminal::-webkit-scrollbar-thumb:hover {
+      background: rgba(102, 126, 234, 0.5);
     }
   </style>
 </head>
 <body>
-  <div id="output"></div>
-  <div id="input-container">
-    <span id="prompt-display">nexus@browser:~$</span>
-    <input type="text" id="input" autofocus autocomplete="off" spellcheck="false">
+  <div class="terminal" id="terminal">
+    <div class="terminal-line terminal-info">NEXUS Terminal v1.0.0</div>
+    <div class="terminal-line terminal-info">Type 'help' for available commands</div>
+    <div class="terminal-line" style="margin-bottom: 12px;"></div>
   </div>
 
   <script>
-    class AdvancedTerminal {
+    // ═══════════════════════════════════════════════
+    // TERMINAL APP
+    // ═══════════════════════════════════════════════
+
+    class Terminal {
       constructor() {
-        this.output = document.getElementById('output');
-        this.input = document.getElementById('input');
-        this.promptDisplay = document.getElementById('prompt-display');
-        this.currentPath = '/';
-        this.username = 'nexus';
-        this.hostname = 'browser';
-        this.history = [];
+        this.terminalElement = document.getElementById('terminal');
+        this.currentPath = '/home/user';
+        this.commandHistory = [];
         this.historyIndex = -1;
-        this.fs = null;
-        this.env = {
-          HOME: '/home/nexus',
-          PATH: '/bin:/usr/bin:/usr/local/bin',
-          PWD: '/',
-          USER: 'nexus',
-          SHELL: '/bin/nexush'
+        this.pid = null;
+
+        this.filesystem = {
+          '/': ['home', 'etc', 'usr', 'var'],
+          '/home': ['user'],
+          '/home/user': ['Documents', 'Downloads', 'Desktop'],
+          '/home/user/Documents': ['notes.txt', 'readme.md'],
+          '/home/user/Downloads': [],
+          '/home/user/Desktop': [],
+          '/etc': ['config.conf'],
+          '/usr': ['bin', 'lib'],
+          '/usr/bin': [],
+          '/usr/lib': [],
+          '/var': ['log'],
+          '/var/log': ['system.log']
         };
-        this.aliases = {};
-        
+
+        this.files = {
+          '/home/user/Documents/notes.txt': 'This is a sample note file.',
+          '/home/user/Documents/readme.md': '# NEXUS OS\n\nWelcome to NEXUS Browser OS!',
+          '/etc/config.conf': 'system_version=1.0.0\ntheme=dark',
+          '/var/log/system.log': '[INFO] System started\n[INFO] All modules loaded'
+        };
+
+        this.commands = {
+          help: () => this.showHelp(),
+          clear: () => this.clearTerminal(),
+          ls: (args) => this.listFiles(args),
+          cd: (args) => this.changeDirectory(args),
+          pwd: () => this.printWorkingDirectory(),
+          mkdir: (args) => this.makeDirectory(args),
+          touch: (args) => this.createFile(args),
+          rm: (args) => this.removeFile(args),
+          cat: (args) => this.readFile(args),
+          echo: (args) => this.echo(args),
+          date: () => this.showDate(),
+          whoami: () => 'user',
+          uname: () => 'NEXUS Browser OS v1.0.0',
+          sysinfo: () => this.showSystemInfo(),
+          ps: () => this.showProcesses()
+        };
+
         this.init();
       }
 
-      async init() {
-        // Get filesystem from parent
-        if (window.parent && window.parent.BrowserOS) {
-          this.fs = window.parent.BrowserOS.filesystem;
-          this.username = window.parent.BrowserOS.userProfile?.getUsername() || 'nexus';
-        }
+      init() {
+        this.createPrompt();
+        this.notifyParentReady();
 
-        // Welcome message
-        this.printBanner();
-        this.print('');
-        this.print('<span class="info">Type "help" for available commands</span>');
-        this.print('<span class="info">Type "man [command]" for detailed help</span>');
-        this.print('');
+        window.addEventListener('message', (e) => {
+          const { type, data } = e.data;
 
-        // Setup input handlers
-        this.input.addEventListener('keydown', (e) => this.handleKeydown(e));
-        
-        // Update prompt
-        this.updatePrompt();
+          if (type === 'kernel:config') {
+            this.pid = data.pid;
+            console.log('[Terminal] Received config, PID:', this.pid);
+          }
+        });
       }
 
-      printBanner() {
-        const banner = `
-╔═══════════════════════════════════════════════════════╗
-║         NEXUS Terminal v2.0 - Advanced Shell          ║
-║        50+ Commands | Pipes | Redirections            ║
-╚═══════════════════════════════════════════════════════╝
-        `.trim();
-        
-        this.print('<span class="success">' + banner + '</span>');
-      }
+      createPrompt() {
+        const promptLine = document.createElement('div');
+        promptLine.className = 'terminal-line';
+        promptLine.innerHTML = `
+          <div class="terminal-prompt">
+            <span class="prompt-symbol">user@nexus</span>
+            <span class="prompt-path">${this.currentPath}</span>
+            <span class="prompt-symbol">$</span>
+            <input type="text" class="terminal-input" autocomplete="off" spellcheck="false" />
+          </div>
+        `;
 
-      async handleKeydown(e) {
-        if (e.key === 'Enter') {
-          const command = this.input.value.trim();
-          
-          if (command) {
-            this.history.push(command);
-            this.historyIndex = this.history.length;
-            
-            this.print(`<span class="prompt">${this.getPrompt()}</span> ${this.escapeHtml(command)}`);
-            await this.executeCommand(command);
-          } else {
-            this.print(`<span class="prompt">${this.getPrompt()}</span>`);
-          }
-          
-          this.input.value = '';
-          this.scrollToBottom();
-        } else if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          if (this.historyIndex > 0) {
-            this.historyIndex--;
-            this.input.value = this.history[this.historyIndex];
-          }
-        } else if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          if (this.historyIndex < this.history.length - 1) {
-            this.historyIndex++;
-            this.input.value = this.history[this.historyIndex];
-          } else {
-            this.historyIndex = this.history.length;
-            this.input.value = '';
-          }
-        } else if (e.key === 'Tab') {
-          e.preventDefault();
-          this.autocomplete();
-        } else if (e.key === 'l' && e.ctrlKey) {
-          e.preventDefault();
-          this.output.innerHTML = '';
-        } else if (e.key === 'c' && e.ctrlKey) {
-          e.preventDefault();
-          this.print('^C');
-          this.input.value = '';
-        }
-      }
+        this.terminalElement.appendChild(promptLine);
 
-      async executeCommand(commandLine) {
-        // Check for pipes
-        if (commandLine.includes('|')) {
-          await this.executePipeline(commandLine);
-          return;
-        }
+        const input = promptLine.querySelector('.terminal-input');
+        input.focus();
 
-        // Check for redirections
-        if (commandLine.includes('>') || commandLine.includes('>>')) {
-          await this.executeRedirection(commandLine);
-          return;
-        }
-
-        const parts = this.parseCommand(commandLine);
-        const command = parts[0];
-        const args = parts.slice(1);
-
-        // Check aliases
-        if (this.aliases[command]) {
-          await this.executeCommand(this.aliases[command] + ' ' + args.join(' '));
-          return;
-        }
-
-        try {
-          switch (command) {
-            // File Operations
-            case 'ls': await this.ls(args); break;
-            case 'cd': await this.cd(args); break;
-            case 'pwd': this.print(this.currentPath); break;
-            case 'mkdir': await this.mkdir(args); break;
-            case 'rmdir': await this.rmdir(args); break;
-            case 'rm': await this.rm(args); break;
-            case 'touch': await this.touch(args); break;
-            case 'cat': await this.cat(args); break;
-            case 'echo': this.echo(args); break;
-            case 'cp': await this.cp(args); break;
-            case 'mv': await this.mv(args); break;
-            case 'find': await this.find(args); break;
-            case 'tree': await this.tree(args); break;
-            
-            // Text Processing
-            case 'grep': await this.grep(args); break;
-            case 'head': await this.head(args); break;
-            case 'tail': await this.tail(args); break;
-            case 'wc': await this.wc(args); break;
-            case 'sort': await this.sort(args); break;
-            case 'uniq': await this.uniq(args); break;
-            case 'cut': await this.cut(args); break;
-            case 'tr': await this.tr(args); break;
-            
-            // System Info
-            case 'ps': this.ps(); break;
-            case 'top': this.top(); break;
-            case 'kill': this.kill(args); break;
-            case 'df': await this.df(); break;
-            case 'du': await this.du(args); break;
-            case 'free': this.free(); break;
-            case 'uname': this.uname(args); break;
-            case 'whoami': this.print(this.username); break;
-            case 'hostname': this.print(this.hostname); break;
-            case 'date': this.date(); break;
-            case 'uptime': this.uptime(); break;
-            
-            // Network (Simulated)
-            case 'ping': await this.ping(args); break;
-            case 'curl': await this.curl(args); break;
-            case 'wget': await this.wget(args); break;
-            case 'ifconfig': this.ifconfig(); break;
-            
-            // Environment
-            case 'env': this.env(); break;
-            case 'export': this.export(args); break;
-            case 'alias': this.alias(args); break;
-            case 'unalias': this.unalias(args); break;
-            
-            // Utilities
-            case 'clear': case 'cls': this.output.innerHTML = ''; break;
-            case 'history': this.showHistory(); break;
-            case 'help': this.help(); break;
-            case 'man': this.man(args); break;
-            case 'which': this.which(args); break;
-            case 'type': this.type(args); break;
-            
-            // Package Managers (Simulated)
-            case 'npm': await this.npm(args); break;
-            case 'pip': await this.pip(args); break;
-            case 'apt': await this.apt(args); break;
-            
-            // Programming
-            case 'node': await this.node(args); break;
-            case 'python': await this.python(args); break;
-            case 'git': await this.git(args); break;
-            
-            // Compression
-            case 'tar': await this.tar(args); break;
-            case 'gzip': await this.gzip(args); break;
-            case 'gunzip': await this.gunzip(args); break;
-            case 'zip': await this.zip(args); break;
-            case 'unzip': await this.unzip(args); break;
-            
-            // Advanced
-            case 'chmod': await this.chmod(args); break;
-            case 'chown': await this.chown(args); break;
-            case 'ln': await this.ln(args); break;
-            case 'diff': await this.diff(args); break;
-            case 'sed': await this.sed(args); break;
-            case 'awk': await this.awk(args); break;
-            
-            // Fun
-            case 'cowsay': this.cowsay(args); break;
-            case 'fortune': this.fortune(); break;
-            case 'figlet': this.figlet(args); break;
-            
-            default:
-              this.print(`<span class="error">${command}: command not found</span>`);
-              this.print(`<span class="info">Type "help" for available commands</span>`);
-          }
-        } catch (error) {
-          this.print(`<span class="error">Error: ${error.message}</span>`);
-        }
-      }
-
-      parseCommand(line) {
-        // Simple parser - handle quotes
-        const parts = [];
-        let current = '';
-        let inQuote = false;
-        
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          
-          if (char === '"' || char === "'") {
-            inQuote = !inQuote;
-          } else if (char === ' ' && !inQuote) {
-            if (current) {
-              parts.push(current);
-              current = '';
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            const command = input.value.trim();
+            if (command) {
+              this.executeCommand(command);
+              this.commandHistory.push(command);
+              this.historyIndex = this.commandHistory.length;
             }
-          } else {
-            current += char;
+            input.value = '';
+            this.createPrompt();
+            this.scrollToBottom();
+          } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            if (this.historyIndex > 0) {
+              this.historyIndex--;
+              input.value = this.commandHistory[this.historyIndex];
+            }
+          } else if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            if (this.historyIndex < this.commandHistory.length - 1) {
+              this.historyIndex++;
+              input.value = this.commandHistory[this.historyIndex];
+            } else {
+              this.historyIndex = this.commandHistory.length;
+              input.value = '';
+            }
+          } else if (e.key === 'Tab') {
+            e.preventDefault();
+            // TODO: Tab completion
           }
-        }
-        
-        if (current) parts.push(current);
-        return parts;
-      }
-
-      async ls(args) {
-        const path = args[0] || this.currentPath;
-        
-        try {
-          const files = await this.fs.readdir(path);
-          
-          if (files.length === 0) {
-            return;
-          }
-
-          const hasLFlag = args.includes('-l');
-          const hasAFlag = args.includes('-a');
-          
-          if (hasLFlag) {
-            // Long format
-            files.forEach(file => {
-              const perms = file.type === 'directory' ? 'drwxr-xr-x' : '-rw-r--r--';
-              const size = this.formatSize(file.size || 0);
-              const date = new Date(file.modified || Date.now()).toLocaleDateString();
-              const name = file.type === 'directory' 
-                ? `<span class="dir">${file.name}</span>` 
-                : `<span class="file">${file.name}</span>`;
-              
-              this.print(`${perms}  1 ${this.username} ${this.username} ${size.padStart(8)} ${date} ${name}`);
-            });
-          } else {
-            // Simple format
-            const line = files.map(f => 
-              f.type === 'directory' 
-                ? `<span class="dir">${f.name}</span>` 
-                : `<span class="file">${f.name}</span>`
-            ).join('  ');
-            this.print(line);
-          }
-        } catch (error) {
-          this.print(`<span class="error">ls: ${error.message}</span>`);
-        }
-      }
-
-      async cd(args) {
-        if (!this.fs) {
-          this.print('<span class="error">Filesystem not available</span>');
-          return;
-        }
-
-        let path = args[0] || this.env.HOME;
-        
-        if (path === '~') {
-          path = this.env.HOME;
-        } else if (path === '-') {
-          // Go to previous directory (not implemented yet)
-          path = this.env.OLDPWD || this.currentPath;
-        } else if (path === '..') {
-          const parts = this.currentPath.split('/').filter(p => p);
-          parts.pop();
-          path = '/' + parts.join('/');
-        } else if (!path.startsWith('/')) {
-          path = this.currentPath === '/' 
-            ? '/' + path 
-            : this.currentPath + '/' + path;
-        }
-
-        try {
-          const stat = await this.fs.stat(path);
-          
-          if (stat.type !== 'directory') {
-            this.print(`<span class="error">cd: not a directory: ${args[0]}</span>`);
-            return;
-          }
-
-          this.env.OLDPWD = this.currentPath;
-          this.currentPath = path;
-          this.env.PWD = path;
-          this.updatePrompt();
-        } catch (error) {
-          this.print(`<span class="error">cd: ${error.message}</span>`);
-        }
-      }
-
-      echo(args) {
-        const text = args.join(' ')
-          .replace(/\$(\w+)/g, (match, varname) => this.env[varname] || '');
-        this.print(text);
-      }
-
-      help() {
-        this.print('<span class="success">═══ NEXUS Terminal Commands ═══</span>');
-        this.print('');
-        
-        const categories = {
-          'File Operations': ['ls', 'cd', 'pwd', 'mkdir', 'rm', 'touch', 'cat', 'cp', 'mv', 'find', 'tree'],
-          'Text Processing': ['grep', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'tr'],
-          'System Info': ['ps', 'top', 'kill', 'df', 'du', 'free', 'uname', 'whoami', 'date', 'uptime'],
-          'Network': ['ping', 'curl', 'wget', 'ifconfig'],
-          'Environment': ['env', 'export', 'alias', 'unalias'],
-          'Package Managers': ['npm', 'pip', 'apt'],
-          'Programming': ['node', 'python', 'git'],
-          'Compression': ['tar', 'gzip', 'gunzip', 'zip', 'unzip'],
-          'Utilities': ['clear', 'history', 'help', 'man', 'which']
-        };
-
-        for (const [category, commands] of Object.entries(categories)) {
-          this.print(`<span class="warning">${category}:</span>`);
-          this.print('  ' + commands.join(', '));
-          this.print('');
-        }
-        
-        this.print('<span class="info">Use "man [command]" for detailed help</span>');
-      }
-
-      man(args) {
-        const cmd = args[0];
-        
-        const manPages = {
-          ls: 'List directory contents\nUsage: ls [-l] [-a] [path]\n  -l  Long format\n  -a  Show hidden files',
-          cd: 'Change directory\nUsage: cd [path]\n  ~  Home directory\n  .. Parent directory\n  -  Previous directory',
-          grep: 'Search for patterns\nUsage: grep [pattern] [file]\nExample: ls | grep test',
-          find: 'Search for files\nUsage: find [path] [pattern]',
-          npm: 'Node package manager (simulated)\nUsage: npm install [package]',
-          git: 'Version control (simulated)\nUsage: git [command]'
-        };
-
-        if (cmd && manPages[cmd]) {
-          this.print(`<span class="warning">Manual page for ${cmd}:</span>`);
-          this.print('');
-          this.print(manPages[cmd]);
-        } else {
-          this.print(`<span class="error">No manual entry for ${cmd}</span>`);
-        }
-      }
-
-      ps() {
-        if (!window.parent || !window.parent.BrowserOS) {
-          this.print('<span class="error">Process info not available</span>');
-          return;
-        }
-
-        const processes = Array.from(window.parent.BrowserOS.processes.values());
-
-        this.print('<div class="table">');
-        this.print('<div class="table-row"><span class="success">PID   NAME                STATE       TIME</span></div>');
-        processes.forEach(proc => {
-          const uptime = Math.floor((Date.now() - proc.startTime) / 1000);
-          this.print(`<div class="table-row">${String(proc.pid).padEnd(6)}${proc.name.padEnd(20)}${proc.state.padEnd(12)}${uptime}s</div>`);
         });
-        this.print('</div>');
+
+        // Remove old inputs
+        const inputs = this.terminalElement.querySelectorAll('.terminal-input');
+        inputs.forEach((inp, idx) => {
+          if (idx < inputs.length - 1) {
+            inp.disabled = true;
+          }
+        });
       }
 
-      async npm(args) {
-        if (args[0] === 'install' && args[1]) {
-          this.print(`<span class="info">📦 Installing ${args[1]}...</span>`);
-          await this.delay(1000);
-          this.print(`<span class="success">✓ ${args[1]} installed successfully (simulated)</span>`);
-        } else {
-          this.print('npm <command>');
-          this.print('Commands: install, uninstall, list');
-        }
-      }
+      executeCommand(commandLine) {
+        const [cmd, ...args] = commandLine.split(' ');
 
-      async ping(args) {
-        const host = args[0] || 'localhost';
-        this.print(`<span class="info">PING ${host} (simulated)</span>`);
-        
-        for (let i = 0; i < 4; i++) {
-          await this.delay(1000);
-          const time = Math.floor(Math.random() * 50) + 10;
-          this.print(`64 bytes from ${host}: icmp_seq=${i+1} ttl=64 time=${time}ms`);
-        }
-      }
+        this.output(`$ ${commandLine}`, 'prompt');
 
-      async grep(args) {
-        const pattern = args[0];
-        const file = args[1];
-        
-        if (!pattern) {
-          this.print('<span class="error">grep: missing pattern</span>');
-          return;
-        }
-
-        if (file) {
+        if (this.commands[cmd]) {
           try {
-            const content = await this.fs.readFile(this.resolvePath(file));
-            const lines = content.split('\n');
-            const matches = lines.filter(line => line.includes(pattern));
-            matches.forEach(line => this.print(line));
+            const result = this.commands[cmd](args);
+            if (result !== undefined && result !== null) {
+              this.output(result);
+            }
           } catch (error) {
-            this.print(`<span class="error">grep: ${error.message}</span>`);
+            this.output(`Error: ${error.message}`, 'error');
           }
+        } else {
+          this.output(`Command not found: ${cmd}`, 'error');
         }
       }
 
-      date() {
-        this.print(new Date().toString());
-      }
-
-      uptime() {
-        if (!window.parent || !window.parent.BrowserOS) {
-          this.print('<span class="error">System info not available</span>');
-          return;
-        }
-
-        const sys = window.parent.BrowserOS.getSystemInfo();
-        const seconds = Math.floor(sys.uptime / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-        
-        this.print(`up ${hours} hours, ${minutes % 60} minutes`);
-      }
-
-      cowsay(args) {
-        const text = args.join(' ') || 'Moo!';
-        const bubble = ' ' + '_'.repeat(text.length + 2);
-        
-        this.print(bubble);
-        this.print(`< ${text} >`);
-        this.print(' ' + '-'.repeat(text.length + 2));
-        this.print('        \\   ^__^');
-        this.print('         \\  (oo)\\_______');
-        this.print('            (__)\\       )\\/\\');
-        this.print('                ||----w |');
-        this.print('                ||     ||');
-      }
-
-      fortune() {
-        const fortunes = [
-          'In NEXUS, all things are possible.',
-          'The terminal is your friend.',
-          'With great power comes great responsibility.',
-          'Code is poetry.',
-          'Stay curious, stay creative.',
-          'The journey of a thousand commits begins with a single push.'
-        ];
-        
-        const fortune = fortunes[Math.floor(Math.random() * fortunes.length)];
-        this.print(`<span class="info">${fortune}</span>`);
-      }
-
-      resolvePath(path) {
-        if (path.startsWith('/')) return path;
-        return this.currentPath === '/' ? '/' + path : this.currentPath + '/' + path;
-      }
-
-      getPrompt() {
-        const shortPath = this.currentPath === this.env.HOME ? '~' : this.currentPath;
-        return `${this.username}@${this.hostname}:${shortPath}$`;
-      }
-
-      updatePrompt() {
-        this.promptDisplay.textContent = this.getPrompt();
-      }
-
-      showHistory() {
-        this.history.forEach((cmd, i) => {
-          this.print(`${String(i + 1).padStart(4)}  ${cmd}`);
-        });
-      }
-
-      formatSize(bytes) {
-        if (bytes < 1024) return bytes + 'B';
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'K';
-        return (bytes / (1024 * 1024)).toFixed(1) + 'M';
-      }
-
-      autocomplete() {
-        // Simple autocomplete for commands
-        const value = this.input.value;
-        const commands = ['ls', 'cd', 'cat', 'mkdir', 'rm', 'echo', 'grep', 'find', 'npm', 'git', 'help', 'clear'];
-        const matches = commands.filter(cmd => cmd.startsWith(value));
-        
-        if (matches.length === 1) {
-          this.input.value = matches[0] + ' ';
-        } else if (matches.length > 1) {
-          this.print('');
-          this.print(matches.join('  '));
-          this.print(`<span class="prompt">${this.getPrompt()}</span> ${value}`);
-        }
-      }
-
-      print(text) {
+      output(text, type = 'output') {
         const line = document.createElement('div');
-        line.className = 'terminal-line';
-        line.innerHTML = text;
-        this.output.appendChild(line);
-      }
-
-      escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        line.className = `terminal-line terminal-${type}`;
+        line.textContent = text;
+        this.terminalElement.appendChild(line);
       }
 
       scrollToBottom() {
-        this.output.scrollTop = this.output.scrollHeight;
+        this.terminalElement.scrollTop = this.terminalElement.scrollHeight;
       }
 
-      delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+      // ═══════════════════════════════════════════════
+      // COMMANDS
+      // ═══════════════════════════════════════════════
+
+      showHelp() {
+        return `Available commands:
+  help        Show this help message
+  clear       Clear the terminal
+  ls          List directory contents
+  cd <dir>    Change directory
+  pwd         Print working directory
+  mkdir <dir> Create directory
+  touch <f>   Create file
+  rm <f>      Remove file
+  cat <file>  Display file contents
+  echo <txt>  Print text
+  date        Show current date/time
+  whoami      Show current user
+  uname       Show system info
+  sysinfo     Show system information
+  ps          List processes`;
       }
 
-      // Stub methods for commands not fully implemented
-      async mkdir(args) { this.print(`<span class="info">mkdir: creating ${args[0]}</span>`); }
-      async rmdir(args) { this.print(`<span class="info">rmdir: removing ${args[0]}</span>`); }
-      async rm(args) { this.print(`<span class="info">rm: removing ${args[0]}</span>`); }
-      async touch(args) { this.print(`<span class="info">touch: creating ${args[0]}</span>`); }
-      async cat(args) { this.print(`<span class="info">cat: reading ${args[0]}</span>`); }
-      async cp(args) { this.print(`<span class="info">cp: copying ${args[0]} to ${args[1]}</span>`); }
-      async mv(args) { this.print(`<span class="info">mv: moving ${args[0]} to ${args[1]}</span>`); }
-      async find(args) { this.print(`<span class="info">find: searching...</span>`); }
-      async tree(args) { this.print(`<span class="info">tree: displaying tree...</span>`); }
-      async head(args) { this.print(`<span class="info">head: first lines of ${args[0]}</span>`); }
-      async tail(args) { this.print(`<span class="info">tail: last lines of ${args[0]}</span>`); }
-      async wc(args) { this.print(`<span class="info">wc: counting words...</span>`); }
-      async sort(args) { this.print(`<span class="info">sort: sorting...</span>`); }
-      async uniq(args) { this.print(`<span class="info">uniq: filtering...</span>`); }
-      async cut(args) { this.print(`<span class="info">cut: cutting...</span>`); }
-      async tr(args) { this.print(`<span class="info">tr: translating...</span>`); }
-      top() { this.print('<span class="info">top: process monitor</span>'); }
-      kill(args) { this.print(`<span class="info">kill: sending signal to ${args[0]}</span>`); }
-      async df() { this.print('<span class="info">Filesystem usage...</span>'); }
-      async du(args) { this.print('<span class="info">Disk usage...</span>'); }
-      free() { this.print('<span class="info">Memory usage...</span>'); }
-      uname(args) { this.print('NEXUS Browser OS 1.0.0'); }
-      ifconfig() { this.print('<span class="info">Network interfaces...</span>'); }
-      env() { Object.entries(this.env).forEach(([k, v]) => this.print(`${k}=${v}`)); }
-      export(args) { if (args[0]) { const [k, v] = args[0].split('='); this.env[k] = v; } }
-      alias(args) { if (args[0]) { const [k, v] = args[0].split('='); this.aliases[k] = v; } else { Object.entries(this.aliases).forEach(([k, v]) => this.print(`${k}='${v}'`)); } }
-      unalias(args) { delete this.aliases[args[0]]; }
-      which(args) { this.print(`/usr/bin/${args[0]}`); }
-      type(args) { this.print(`${args[0]} is a shell builtin`); }
-      async pip(args) { this.print('<span class="info">pip: Python package manager (simulated)</span>'); }
-      async apt(args) { this.print('<span class="info">apt: package manager (simulated)</span>'); }
-      async node(args) { this.print('<span class="info">node: Node.js REPL (simulated)</span>'); }
-      async python(args) { this.print('<span class="info">python: Python REPL (simulated)</span>'); }
-      async git(args) { this.print(`<span class="info">git ${args[0]}: version control (simulated)</span>`); }
-      async tar(args) { this.print('<span class="info">tar: archiving...</span>'); }
-      async gzip(args) { this.print('<span class="info">gzip: compressing...</span>'); }
-      async gunzip(args) { this.print('<span class="info">gunzip: decompressing...</span>'); }
-      async zip(args) { this.print('<span class="info">zip: creating archive...</span>'); }
-      async unzip(args) { this.print('<span class="info">unzip: extracting archive...</span>'); }
-      async chmod(args) { this.print(`<span class="info">chmod: changing permissions...</span>`); }
-      async chown(args) { this.print(`<span class="info">chown: changing owner...</span>`); }
-      async ln(args) { this.print(`<span class="info">ln: creating link...</span>`); }
-      async diff(args) { this.print(`<span class="info">diff: comparing files...</span>`); }
-      async sed(args) { this.print(`<span class="info">sed: stream editor...</span>`); }
-      async awk(args) { this.print(`<span class="info">awk: pattern scanning...</span>`); }
-      async curl(args) { this.print(`<span class="info">curl: transferring data...</span>`); }
-      async wget(args) { this.print(`<span class="info">wget: downloading...</span>`); }
-      figlet(args) { this.print(`<span class="warning">${args.join(' ')}</span>`); }
-      
-      async executePipeline(commandLine) {
-        const commands = commandLine.split('|').map(c => c.trim());
-        let output = null;
+      clearTerminal() {
+        this.terminalElement.innerHTML = '';
+      }
+
+      listFiles(args) {
+        const path = args[0] ? this.resolvePath(args[0]) : this.currentPath;
         
-        for (const cmd of commands) {
-          // Execute each command in pipeline
-          // For now, just execute them separately
-          await this.executeCommand(cmd);
+        if (!this.filesystem[path]) {
+          throw new Error(`ls: cannot access '${path}': No such directory`);
         }
+
+        return this.filesystem[path].join('  ');
       }
-      
-      async executeRedirection(commandLine) {
-        // Handle output redirection
-        this.print(`<span class="info">Redirection: ${commandLine}</span>`);
+
+      changeDirectory(args) {
+        if (!args[0]) {
+          this.currentPath = '/home/user';
+          return;
+        }
+
+        const newPath = this.resolvePath(args[0]);
+
+        if (!this.filesystem[newPath]) {
+          throw new Error(`cd: ${args[0]}: No such directory`);
+        }
+
+        this.currentPath = newPath;
+      }
+
+      printWorkingDirectory() {
+        return this.currentPath;
+      }
+
+      makeDirectory(args) {
+        if (!args[0]) {
+          throw new Error('mkdir: missing operand');
+        }
+
+        const newPath = this.resolvePath(args[0]);
+        const parentPath = this.getParentPath(newPath);
+        const dirName = this.getBaseName(newPath);
+
+        if (!this.filesystem[parentPath]) {
+          throw new Error(`mkdir: cannot create directory '${args[0]}': No such file or directory`);
+        }
+
+        if (this.filesystem[newPath]) {
+          throw new Error(`mkdir: cannot create directory '${args[0]}': File exists`);
+        }
+
+        this.filesystem[newPath] = [];
+        this.filesystem[parentPath].push(dirName);
+
+        return `Created directory: ${newPath}`;
+      }
+
+      createFile(args) {
+        if (!args[0]) {
+          throw new Error('touch: missing file operand');
+        }
+
+        const filePath = this.resolvePath(args[0]);
+        const parentPath = this.getParentPath(filePath);
+        const fileName = this.getBaseName(filePath);
+
+        if (!this.filesystem[parentPath]) {
+          throw new Error(`touch: cannot touch '${args[0]}': No such file or directory`);
+        }
+
+        if (!this.filesystem[parentPath].includes(fileName)) {
+          this.filesystem[parentPath].push(fileName);
+          this.files[filePath] = '';
+        }
+
+        return `Created file: ${filePath}`;
+      }
+
+      removeFile(args) {
+        if (!args[0]) {
+          throw new Error('rm: missing operand');
+        }
+
+        const filePath = this.resolvePath(args[0]);
+        const parentPath = this.getParentPath(filePath);
+        const fileName = this.getBaseName(filePath);
+
+        if (!this.filesystem[parentPath]) {
+          throw new Error(`rm: cannot remove '${args[0]}': No such file or directory`);
+        }
+
+        const index = this.filesystem[parentPath].indexOf(fileName);
+        if (index === -1) {
+          throw new Error(`rm: cannot remove '${args[0]}': No such file or directory`);
+        }
+
+        this.filesystem[parentPath].splice(index, 1);
+        delete this.files[filePath];
+
+        return `Removed: ${filePath}`;
+      }
+
+      readFile(args) {
+        if (!args[0]) {
+          throw new Error('cat: missing file operand');
+        }
+
+        const filePath = this.resolvePath(args[0]);
+
+        if (!this.files[filePath]) {
+          throw new Error(`cat: ${args[0]}: No such file`);
+        }
+
+        return this.files[filePath];
+      }
+
+      echo(args) {
+        return args.join(' ');
+      }
+
+      showDate() {
+        return new Date().toString();
+      }
+
+      showSystemInfo() {
+        return `System Information:
+  OS: NEXUS Browser OS
+  Version: 1.0.0
+  Architecture: WebAssembly
+  Memory: ${(performance.memory?.usedJSHeapSize / 1048576).toFixed(2) || 'N/A'} MB
+  Uptime: ${Math.floor(performance.now() / 1000)} seconds`;
+      }
+
+      showProcesses() {
+        return `PID    NAME
+1      init
+${this.pid || 'N/A'}      terminal`;
+      }
+
+      // ═══════════════════════════════════════════════
+      // HELPERS
+      // ═══════════════════════════════════════════════
+
+      resolvePath(path) {
+        if (path.startsWith('/')) {
+          return path;
+        }
+
+        if (path === '..') {
+          return this.getParentPath(this.currentPath);
+        }
+
+        if (path === '.') {
+          return this.currentPath;
+        }
+
+        const parts = path.split('/');
+        let resolved = this.currentPath;
+
+        for (const part of parts) {
+          if (part === '..') {
+            resolved = this.getParentPath(resolved);
+          } else if (part !== '.' && part !== '') {
+            resolved = resolved === '/' ? `/${part}` : `${resolved}/${part}`;
+          }
+        }
+
+        return resolved;
+      }
+
+      getParentPath(path) {
+        if (path === '/') return '/';
+        const parts = path.split('/').filter(p => p);
+        parts.pop();
+        return parts.length === 0 ? '/' : '/' + parts.join('/');
+      }
+
+      getBaseName(path) {
+        const parts = path.split('/').filter(p => p);
+        return parts[parts.length - 1] || '/';
+      }
+
+      notifyParentReady() {
+        console.log('[Terminal] Notifying parent: app ready');
+        window.parent.postMessage({
+          type: 'app:ready',
+          pid: this.pid
+        }, '*');
       }
     }
 
     // Initialize terminal
-    const terminal = new AdvancedTerminal();
-
-    // Keep input focused
-    document.addEventListener('click', () => {
-      document.getElementById('input').focus();
-    });
+    const terminal = new Terminal();
+    console.log('[Terminal] App initialized');
   </script>
 </body>
 </html>
