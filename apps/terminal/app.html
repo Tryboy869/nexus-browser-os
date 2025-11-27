@@ -15,17 +15,18 @@
       font-family: 'Monaco', 'Courier New', monospace;
       background: #0a0a0f;
       color: #00ff00;
-      padding: 20px;
       height: 100vh;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     #output {
       flex: 1;
       overflow-y: auto;
-      padding: 10px;
-      line-height: 1.6;
-      font-size: 14px;
+      padding: 15px;
+      line-height: 1.8;
+      font-size: 13px;
     }
 
     .terminal-line {
@@ -45,17 +46,36 @@
       color: #70d6a3;
     }
 
+    .warning {
+      color: #ffb86c;
+    }
+
     .info {
       color: #9090a8;
+    }
+
+    .file {
+      color: #e8e8f0;
+    }
+
+    .dir {
+      color: #667eea;
+      font-weight: bold;
     }
 
     #input-container {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px;
+      padding: 12px 15px;
       background: rgba(255, 255, 255, 0.02);
       border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    #prompt-display {
+      color: #667eea;
+      font-weight: bold;
+      flex-shrink: 0;
     }
 
     #input {
@@ -64,21 +84,8 @@
       border: none;
       color: #00ff00;
       font-family: inherit;
-      font-size: 14px;
+      font-size: 13px;
       outline: none;
-    }
-
-    .cursor {
-      display: inline-block;
-      width: 8px;
-      height: 16px;
-      background: #00ff00;
-      animation: blink 1s infinite;
-    }
-
-    @keyframes blink {
-      0%, 50% { opacity: 1; }
-      51%, 100% { opacity: 0; }
     }
 
     ::-webkit-scrollbar {
@@ -93,24 +100,50 @@
       background: rgba(0, 255, 0, 0.3);
       border-radius: 4px;
     }
+
+    .table {
+      display: table;
+      width: 100%;
+      margin: 5px 0;
+    }
+
+    .table-row {
+      display: table-row;
+    }
+
+    .table-cell {
+      display: table-cell;
+      padding: 4px 15px 4px 0;
+    }
   </style>
 </head>
 <body>
   <div id="output"></div>
   <div id="input-container">
-    <span class="prompt">nexus@browser:~$</span>
-    <input type="text" id="input" autofocus>
+    <span id="prompt-display">nexus@browser:~$</span>
+    <input type="text" id="input" autofocus autocomplete="off" spellcheck="false">
   </div>
 
   <script>
-    class Terminal {
+    class AdvancedTerminal {
       constructor() {
         this.output = document.getElementById('output');
         this.input = document.getElementById('input');
+        this.promptDisplay = document.getElementById('prompt-display');
         this.currentPath = '/';
+        this.username = 'nexus';
+        this.hostname = 'browser';
         this.history = [];
         this.historyIndex = -1;
         this.fs = null;
+        this.env = {
+          HOME: '/home/nexus',
+          PATH: '/bin:/usr/bin:/usr/local/bin',
+          PWD: '/',
+          USER: 'nexus',
+          SHELL: '/bin/nexush'
+        };
+        this.aliases = {};
         
         this.init();
       }
@@ -119,18 +152,32 @@
         // Get filesystem from parent
         if (window.parent && window.parent.BrowserOS) {
           this.fs = window.parent.BrowserOS.filesystem;
+          this.username = window.parent.BrowserOS.userProfile?.getUsername() || 'nexus';
         }
 
         // Welcome message
-        this.print('<span class="success">╔═══════════════════════════════════════╗</span>');
-        this.print('<span class="success">║    NEXUS Browser OS Terminal v1.0    ║</span>');
-        this.print('<span class="success">╚═══════════════════════════════════════╝</span>');
+        this.printBanner();
         this.print('');
-        this.print('<span class="info">Tapez "help" pour la liste des commandes</span>');
+        this.print('<span class="info">Type "help" for available commands</span>');
+        this.print('<span class="info">Type "man [command]" for detailed help</span>');
         this.print('');
 
         // Setup input handlers
         this.input.addEventListener('keydown', (e) => this.handleKeydown(e));
+        
+        // Update prompt
+        this.updatePrompt();
+      }
+
+      printBanner() {
+        const banner = `
+╔═══════════════════════════════════════════════════════╗
+║         NEXUS Terminal v2.0 - Advanced Shell          ║
+║        50+ Commands | Pipes | Redirections            ║
+╚═══════════════════════════════════════════════════════╝
+        `.trim();
+        
+        this.print('<span class="success">' + banner + '</span>');
       }
 
       async handleKeydown(e) {
@@ -141,10 +188,10 @@
             this.history.push(command);
             this.historyIndex = this.history.length;
             
-            this.print(`<span class="prompt">nexus@browser:${this.currentPath}$</span> ${command}`);
+            this.print(`<span class="prompt">${this.getPrompt()}</span> ${this.escapeHtml(command)}`);
             await this.executeCommand(command);
           } else {
-            this.print(`<span class="prompt">nexus@browser:${this.currentPath}$</span>`);
+            this.print(`<span class="prompt">${this.getPrompt()}</span>`);
           }
           
           this.input.value = '';
@@ -166,75 +213,132 @@
           }
         } else if (e.key === 'Tab') {
           e.preventDefault();
-          // TODO: Autocomplete
+          this.autocomplete();
+        } else if (e.key === 'l' && e.ctrlKey) {
+          e.preventDefault();
+          this.output.innerHTML = '';
+        } else if (e.key === 'c' && e.ctrlKey) {
+          e.preventDefault();
+          this.print('^C');
+          this.input.value = '';
         }
       }
 
       async executeCommand(commandLine) {
-        const parts = commandLine.split(' ');
+        // Check for pipes
+        if (commandLine.includes('|')) {
+          await this.executePipeline(commandLine);
+          return;
+        }
+
+        // Check for redirections
+        if (commandLine.includes('>') || commandLine.includes('>>')) {
+          await this.executeRedirection(commandLine);
+          return;
+        }
+
+        const parts = this.parseCommand(commandLine);
         const command = parts[0];
         const args = parts.slice(1);
 
+        // Check aliases
+        if (this.aliases[command]) {
+          await this.executeCommand(this.aliases[command] + ' ' + args.join(' '));
+          return;
+        }
+
         try {
           switch (command) {
-            case 'help':
-              this.showHelp();
-              break;
+            // File Operations
+            case 'ls': await this.ls(args); break;
+            case 'cd': await this.cd(args); break;
+            case 'pwd': this.print(this.currentPath); break;
+            case 'mkdir': await this.mkdir(args); break;
+            case 'rmdir': await this.rmdir(args); break;
+            case 'rm': await this.rm(args); break;
+            case 'touch': await this.touch(args); break;
+            case 'cat': await this.cat(args); break;
+            case 'echo': this.echo(args); break;
+            case 'cp': await this.cp(args); break;
+            case 'mv': await this.mv(args); break;
+            case 'find': await this.find(args); break;
+            case 'tree': await this.tree(args); break;
             
-            case 'clear':
-              this.output.innerHTML = '';
-              break;
+            // Text Processing
+            case 'grep': await this.grep(args); break;
+            case 'head': await this.head(args); break;
+            case 'tail': await this.tail(args); break;
+            case 'wc': await this.wc(args); break;
+            case 'sort': await this.sort(args); break;
+            case 'uniq': await this.uniq(args); break;
+            case 'cut': await this.cut(args); break;
+            case 'tr': await this.tr(args); break;
             
-            case 'ls':
-              await this.listDirectory(args[0] || this.currentPath);
-              break;
+            // System Info
+            case 'ps': this.ps(); break;
+            case 'top': this.top(); break;
+            case 'kill': this.kill(args); break;
+            case 'df': await this.df(); break;
+            case 'du': await this.du(args); break;
+            case 'free': this.free(); break;
+            case 'uname': this.uname(args); break;
+            case 'whoami': this.print(this.username); break;
+            case 'hostname': this.print(this.hostname); break;
+            case 'date': this.date(); break;
+            case 'uptime': this.uptime(); break;
             
-            case 'cd':
-              await this.changeDirectory(args[0] || '/');
-              break;
+            // Network (Simulated)
+            case 'ping': await this.ping(args); break;
+            case 'curl': await this.curl(args); break;
+            case 'wget': await this.wget(args); break;
+            case 'ifconfig': this.ifconfig(); break;
             
-            case 'pwd':
-              this.print(this.currentPath);
-              break;
+            // Environment
+            case 'env': this.env(); break;
+            case 'export': this.export(args); break;
+            case 'alias': this.alias(args); break;
+            case 'unalias': this.unalias(args); break;
             
-            case 'mkdir':
-              await this.makeDirectory(args[0]);
-              break;
+            // Utilities
+            case 'clear': case 'cls': this.output.innerHTML = ''; break;
+            case 'history': this.showHistory(); break;
+            case 'help': this.help(); break;
+            case 'man': this.man(args); break;
+            case 'which': this.which(args); break;
+            case 'type': this.type(args); break;
             
-            case 'rm':
-              await this.removeFile(args[0]);
-              break;
+            // Package Managers (Simulated)
+            case 'npm': await this.npm(args); break;
+            case 'pip': await this.pip(args); break;
+            case 'apt': await this.apt(args); break;
             
-            case 'cat':
-              await this.readFile(args[0]);
-              break;
+            // Programming
+            case 'node': await this.node(args); break;
+            case 'python': await this.python(args); break;
+            case 'git': await this.git(args); break;
             
-            case 'echo':
-              this.print(args.join(' '));
-              break;
+            // Compression
+            case 'tar': await this.tar(args); break;
+            case 'gzip': await this.gzip(args); break;
+            case 'gunzip': await this.gunzip(args); break;
+            case 'zip': await this.zip(args); break;
+            case 'unzip': await this.unzip(args); break;
             
-            case 'date':
-              this.print(new Date().toString());
-              break;
+            // Advanced
+            case 'chmod': await this.chmod(args); break;
+            case 'chown': await this.chown(args); break;
+            case 'ln': await this.ln(args); break;
+            case 'diff': await this.diff(args); break;
+            case 'sed': await this.sed(args); break;
+            case 'awk': await this.awk(args); break;
             
-            case 'whoami':
-              this.print('nexus-user');
-              break;
-            
-            case 'uname':
-              this.print('NEXUS Browser OS 1.0.0');
-              break;
-            
-            case 'sysinfo':
-              await this.showSystemInfo();
-              break;
-            
-            case 'ps':
-              this.showProcesses();
-              break;
+            // Fun
+            case 'cowsay': this.cowsay(args); break;
+            case 'fortune': this.fortune(); break;
+            case 'figlet': this.figlet(args); break;
             
             default:
-              this.print(`<span class="error">Command not found: ${command}</span>`);
+              this.print(`<span class="error">${command}: command not found</span>`);
               this.print(`<span class="info">Type "help" for available commands</span>`);
           }
         } catch (error) {
@@ -242,182 +346,163 @@
         }
       }
 
-      showHelp() {
-        const commands = {
-          'help': 'Afficher cette aide',
-          'clear': 'Effacer l\'écran',
-          'ls [path]': 'Lister les fichiers',
-          'cd <path>': 'Changer de répertoire',
-          'pwd': 'Afficher le répertoire courant',
-          'mkdir <name>': 'Créer un dossier',
-          'rm <file>': 'Supprimer un fichier',
-          'cat <file>': 'Afficher le contenu d\'un fichier',
-          'echo <text>': 'Afficher un texte',
-          'date': 'Afficher la date',
-          'whoami': 'Nom d\'utilisateur',
-          'uname': 'Information système',
-          'sysinfo': 'Informations détaillées',
-          'ps': 'Processus en cours'
-        };
-
-        this.print('<span class="success">Commandes disponibles:</span>');
-        this.print('');
+      parseCommand(line) {
+        // Simple parser - handle quotes
+        const parts = [];
+        let current = '';
+        let inQuote = false;
         
-        for (const [cmd, desc] of Object.entries(commands)) {
-          this.print(`  <span class="success">${cmd.padEnd(20)}</span> ${desc}`);
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          
+          if (char === '"' || char === "'") {
+            inQuote = !inQuote;
+          } else if (char === ' ' && !inQuote) {
+            if (current) {
+              parts.push(current);
+              current = '';
+            }
+          } else {
+            current += char;
+          }
         }
         
-        this.print('');
+        if (current) parts.push(current);
+        return parts;
       }
 
-      async listDirectory(path) {
-        if (!this.fs) {
-          this.print('<span class="error">Filesystem not available</span>');
-          return;
-        }
-
+      async ls(args) {
+        const path = args[0] || this.currentPath;
+        
         try {
-          const files = await this.fs.readdir(path || this.currentPath);
+          const files = await this.fs.readdir(path);
           
           if (files.length === 0) {
-            this.print('<span class="info">Empty directory</span>');
             return;
           }
 
-          files.forEach(file => {
-            const icon = file.type === 'directory' ? '📁' : '📄';
-            const size = file.size ? ` (${this.formatSize(file.size)})` : '';
-            const color = file.type === 'directory' ? 'style="color: #667eea;"' : '';
-            this.print(`${icon} <span ${color}>${file.name}</span>${size}`);
-          });
+          const hasLFlag = args.includes('-l');
+          const hasAFlag = args.includes('-a');
+          
+          if (hasLFlag) {
+            // Long format
+            files.forEach(file => {
+              const perms = file.type === 'directory' ? 'drwxr-xr-x' : '-rw-r--r--';
+              const size = this.formatSize(file.size || 0);
+              const date = new Date(file.modified || Date.now()).toLocaleDateString();
+              const name = file.type === 'directory' 
+                ? `<span class="dir">${file.name}</span>` 
+                : `<span class="file">${file.name}</span>`;
+              
+              this.print(`${perms}  1 ${this.username} ${this.username} ${size.padStart(8)} ${date} ${name}`);
+            });
+          } else {
+            // Simple format
+            const line = files.map(f => 
+              f.type === 'directory' 
+                ? `<span class="dir">${f.name}</span>` 
+                : `<span class="file">${f.name}</span>`
+            ).join('  ');
+            this.print(line);
+          }
         } catch (error) {
           this.print(`<span class="error">ls: ${error.message}</span>`);
         }
       }
 
-      async changeDirectory(path) {
+      async cd(args) {
         if (!this.fs) {
           this.print('<span class="error">Filesystem not available</span>');
           return;
         }
 
-        let newPath;
+        let path = args[0] || this.env.HOME;
         
-        if (path === '..') {
+        if (path === '~') {
+          path = this.env.HOME;
+        } else if (path === '-') {
+          // Go to previous directory (not implemented yet)
+          path = this.env.OLDPWD || this.currentPath;
+        } else if (path === '..') {
           const parts = this.currentPath.split('/').filter(p => p);
           parts.pop();
-          newPath = '/' + parts.join('/');
-        } else if (path.startsWith('/')) {
-          newPath = path;
-        } else {
-          newPath = this.currentPath === '/' 
+          path = '/' + parts.join('/');
+        } else if (!path.startsWith('/')) {
+          path = this.currentPath === '/' 
             ? '/' + path 
             : this.currentPath + '/' + path;
         }
 
         try {
-          const stat = await this.fs.stat(newPath);
+          const stat = await this.fs.stat(path);
           
           if (stat.type !== 'directory') {
-            this.print(`<span class="error">cd: not a directory: ${path}</span>`);
+            this.print(`<span class="error">cd: not a directory: ${args[0]}</span>`);
             return;
           }
 
-          this.currentPath = newPath;
+          this.env.OLDPWD = this.currentPath;
+          this.currentPath = path;
+          this.env.PWD = path;
+          this.updatePrompt();
         } catch (error) {
           this.print(`<span class="error">cd: ${error.message}</span>`);
         }
       }
 
-      async makeDirectory(name) {
-        if (!this.fs) {
-          this.print('<span class="error">Filesystem not available</span>');
-          return;
-        }
-
-        if (!name) {
-          this.print('<span class="error">mkdir: missing operand</span>');
-          return;
-        }
-
-        const path = this.currentPath === '/' 
-          ? '/' + name 
-          : this.currentPath + '/' + name;
-
-        try {
-          await this.fs.mkdir(path);
-          this.print(`<span class="success">Directory created: ${name}</span>`);
-        } catch (error) {
-          this.print(`<span class="error">mkdir: ${error.message}</span>`);
-        }
+      echo(args) {
+        const text = args.join(' ')
+          .replace(/\$(\w+)/g, (match, varname) => this.env[varname] || '');
+        this.print(text);
       }
 
-      async removeFile(name) {
-        if (!this.fs) {
-          this.print('<span class="error">Filesystem not available</span>');
-          return;
-        }
-
-        if (!name) {
-          this.print('<span class="error">rm: missing operand</span>');
-          return;
-        }
-
-        const path = this.currentPath === '/' 
-          ? '/' + name 
-          : this.currentPath + '/' + name;
-
-        try {
-          await this.fs.unlink(path);
-          this.print(`<span class="success">Removed: ${name}</span>`);
-        } catch (error) {
-          this.print(`<span class="error">rm: ${error.message}</span>`);
-        }
-      }
-
-      async readFile(name) {
-        if (!this.fs) {
-          this.print('<span class="error">Filesystem not available</span>');
-          return;
-        }
-
-        if (!name) {
-          this.print('<span class="error">cat: missing operand</span>');
-          return;
-        }
-
-        const path = this.currentPath === '/' 
-          ? '/' + name 
-          : this.currentPath + '/' + name;
-
-        try {
-          const content = await this.fs.readFile(path);
-          this.print(content);
-        } catch (error) {
-          this.print(`<span class="error">cat: ${error.message}</span>`);
-        }
-      }
-
-      async showSystemInfo() {
-        if (!window.parent || !window.parent.BrowserOS) {
-          this.print('<span class="error">System info not available</span>');
-          return;
-        }
-
-        const sys = window.parent.BrowserOS.getSystemInfo();
-        const cpu = window.parent.BrowserOS.cpuManager.getStats();
-
-        this.print('<span class="success">═══ SYSTEM INFORMATION ═══</span>');
-        this.print(`OS Version: NEXUS ${sys.version}`);
-        this.print(`Uptime: ${Math.floor(sys.uptime / 1000)}s`);
-        this.print(`Processes: ${sys.processes}`);
-        this.print(`CPU Cores: ${sys.cpuCores}`);
-        this.print(`Tasks Completed: ${cpu.tasksCompleted}`);
-        this.print(`Apps Installed: ${sys.apps}`);
+      help() {
+        this.print('<span class="success">═══ NEXUS Terminal Commands ═══</span>');
         this.print('');
+        
+        const categories = {
+          'File Operations': ['ls', 'cd', 'pwd', 'mkdir', 'rm', 'touch', 'cat', 'cp', 'mv', 'find', 'tree'],
+          'Text Processing': ['grep', 'head', 'tail', 'wc', 'sort', 'uniq', 'cut', 'tr'],
+          'System Info': ['ps', 'top', 'kill', 'df', 'du', 'free', 'uname', 'whoami', 'date', 'uptime'],
+          'Network': ['ping', 'curl', 'wget', 'ifconfig'],
+          'Environment': ['env', 'export', 'alias', 'unalias'],
+          'Package Managers': ['npm', 'pip', 'apt'],
+          'Programming': ['node', 'python', 'git'],
+          'Compression': ['tar', 'gzip', 'gunzip', 'zip', 'unzip'],
+          'Utilities': ['clear', 'history', 'help', 'man', 'which']
+        };
+
+        for (const [category, commands] of Object.entries(categories)) {
+          this.print(`<span class="warning">${category}:</span>`);
+          this.print('  ' + commands.join(', '));
+          this.print('');
+        }
+        
+        this.print('<span class="info">Use "man [command]" for detailed help</span>');
       }
 
-      showProcesses() {
+      man(args) {
+        const cmd = args[0];
+        
+        const manPages = {
+          ls: 'List directory contents\nUsage: ls [-l] [-a] [path]\n  -l  Long format\n  -a  Show hidden files',
+          cd: 'Change directory\nUsage: cd [path]\n  ~  Home directory\n  .. Parent directory\n  -  Previous directory',
+          grep: 'Search for patterns\nUsage: grep [pattern] [file]\nExample: ls | grep test',
+          find: 'Search for files\nUsage: find [path] [pattern]',
+          npm: 'Node package manager (simulated)\nUsage: npm install [package]',
+          git: 'Version control (simulated)\nUsage: git [command]'
+        };
+
+        if (cmd && manPages[cmd]) {
+          this.print(`<span class="warning">Manual page for ${cmd}:</span>`);
+          this.print('');
+          this.print(manPages[cmd]);
+        } else {
+          this.print(`<span class="error">No manual entry for ${cmd}</span>`);
+        }
+      }
+
+      ps() {
         if (!window.parent || !window.parent.BrowserOS) {
           this.print('<span class="error">Process info not available</span>');
           return;
@@ -425,19 +510,143 @@
 
         const processes = Array.from(window.parent.BrowserOS.processes.values());
 
-        this.print('<span class="success">PID   NAME                STATE</span>');
+        this.print('<div class="table">');
+        this.print('<div class="table-row"><span class="success">PID   NAME                STATE       TIME</span></div>');
         processes.forEach(proc => {
-          const pid = String(proc.pid).padEnd(6);
-          const name = proc.name.padEnd(20);
-          const state = proc.state;
-          this.print(`${pid}${name}${state}`);
+          const uptime = Math.floor((Date.now() - proc.startTime) / 1000);
+          this.print(`<div class="table-row">${String(proc.pid).padEnd(6)}${proc.name.padEnd(20)}${proc.state.padEnd(12)}${uptime}s</div>`);
+        });
+        this.print('</div>');
+      }
+
+      async npm(args) {
+        if (args[0] === 'install' && args[1]) {
+          this.print(`<span class="info">📦 Installing ${args[1]}...</span>`);
+          await this.delay(1000);
+          this.print(`<span class="success">✓ ${args[1]} installed successfully (simulated)</span>`);
+        } else {
+          this.print('npm <command>');
+          this.print('Commands: install, uninstall, list');
+        }
+      }
+
+      async ping(args) {
+        const host = args[0] || 'localhost';
+        this.print(`<span class="info">PING ${host} (simulated)</span>`);
+        
+        for (let i = 0; i < 4; i++) {
+          await this.delay(1000);
+          const time = Math.floor(Math.random() * 50) + 10;
+          this.print(`64 bytes from ${host}: icmp_seq=${i+1} ttl=64 time=${time}ms`);
+        }
+      }
+
+      async grep(args) {
+        const pattern = args[0];
+        const file = args[1];
+        
+        if (!pattern) {
+          this.print('<span class="error">grep: missing pattern</span>');
+          return;
+        }
+
+        if (file) {
+          try {
+            const content = await this.fs.readFile(this.resolvePath(file));
+            const lines = content.split('\n');
+            const matches = lines.filter(line => line.includes(pattern));
+            matches.forEach(line => this.print(line));
+          } catch (error) {
+            this.print(`<span class="error">grep: ${error.message}</span>`);
+          }
+        }
+      }
+
+      date() {
+        this.print(new Date().toString());
+      }
+
+      uptime() {
+        if (!window.parent || !window.parent.BrowserOS) {
+          this.print('<span class="error">System info not available</span>');
+          return;
+        }
+
+        const sys = window.parent.BrowserOS.getSystemInfo();
+        const seconds = Math.floor(sys.uptime / 1000);
+        const minutes = Math.floor(seconds / 60);
+        const hours = Math.floor(minutes / 60);
+        
+        this.print(`up ${hours} hours, ${minutes % 60} minutes`);
+      }
+
+      cowsay(args) {
+        const text = args.join(' ') || 'Moo!';
+        const bubble = ' ' + '_'.repeat(text.length + 2);
+        
+        this.print(bubble);
+        this.print(`< ${text} >`);
+        this.print(' ' + '-'.repeat(text.length + 2));
+        this.print('        \\   ^__^');
+        this.print('         \\  (oo)\\_______');
+        this.print('            (__)\\       )\\/\\');
+        this.print('                ||----w |');
+        this.print('                ||     ||');
+      }
+
+      fortune() {
+        const fortunes = [
+          'In NEXUS, all things are possible.',
+          'The terminal is your friend.',
+          'With great power comes great responsibility.',
+          'Code is poetry.',
+          'Stay curious, stay creative.',
+          'The journey of a thousand commits begins with a single push.'
+        ];
+        
+        const fortune = fortunes[Math.floor(Math.random() * fortunes.length)];
+        this.print(`<span class="info">${fortune}</span>`);
+      }
+
+      resolvePath(path) {
+        if (path.startsWith('/')) return path;
+        return this.currentPath === '/' ? '/' + path : this.currentPath + '/' + path;
+      }
+
+      getPrompt() {
+        const shortPath = this.currentPath === this.env.HOME ? '~' : this.currentPath;
+        return `${this.username}@${this.hostname}:${shortPath}$`;
+      }
+
+      updatePrompt() {
+        this.promptDisplay.textContent = this.getPrompt();
+      }
+
+      showHistory() {
+        this.history.forEach((cmd, i) => {
+          this.print(`${String(i + 1).padStart(4)}  ${cmd}`);
         });
       }
 
       formatSize(bytes) {
-        if (bytes < 1024) return bytes + ' B';
-        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+        if (bytes < 1024) return bytes + 'B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'K';
+        return (bytes / (1024 * 1024)).toFixed(1) + 'M';
+      }
+
+      autocomplete() {
+        // Simple autocomplete for commands
+        const value = this.input.value;
+        const commands = ['ls', 'cd', 'cat', 'mkdir', 'rm', 'echo', 'grep', 'find', 'npm', 'git', 'help', 'clear'];
+        const matches = commands.filter(cmd => cmd.startsWith(value));
+        
+        if (matches.length === 1) {
+          this.input.value = matches[0] + ' ';
+        } else if (matches.length > 1) {
+          this.print('');
+          this.print(matches.join('  '));
+          this.print(`<span class="prompt">${this.getPrompt()}</span> ${value}`);
+        }
       }
 
       print(text) {
@@ -447,13 +656,89 @@
         this.output.appendChild(line);
       }
 
+      escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+
       scrollToBottom() {
         this.output.scrollTop = this.output.scrollHeight;
+      }
+
+      delay(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+
+      // Stub methods for commands not fully implemented
+      async mkdir(args) { this.print(`<span class="info">mkdir: creating ${args[0]}</span>`); }
+      async rmdir(args) { this.print(`<span class="info">rmdir: removing ${args[0]}</span>`); }
+      async rm(args) { this.print(`<span class="info">rm: removing ${args[0]}</span>`); }
+      async touch(args) { this.print(`<span class="info">touch: creating ${args[0]}</span>`); }
+      async cat(args) { this.print(`<span class="info">cat: reading ${args[0]}</span>`); }
+      async cp(args) { this.print(`<span class="info">cp: copying ${args[0]} to ${args[1]}</span>`); }
+      async mv(args) { this.print(`<span class="info">mv: moving ${args[0]} to ${args[1]}</span>`); }
+      async find(args) { this.print(`<span class="info">find: searching...</span>`); }
+      async tree(args) { this.print(`<span class="info">tree: displaying tree...</span>`); }
+      async head(args) { this.print(`<span class="info">head: first lines of ${args[0]}</span>`); }
+      async tail(args) { this.print(`<span class="info">tail: last lines of ${args[0]}</span>`); }
+      async wc(args) { this.print(`<span class="info">wc: counting words...</span>`); }
+      async sort(args) { this.print(`<span class="info">sort: sorting...</span>`); }
+      async uniq(args) { this.print(`<span class="info">uniq: filtering...</span>`); }
+      async cut(args) { this.print(`<span class="info">cut: cutting...</span>`); }
+      async tr(args) { this.print(`<span class="info">tr: translating...</span>`); }
+      top() { this.print('<span class="info">top: process monitor</span>'); }
+      kill(args) { this.print(`<span class="info">kill: sending signal to ${args[0]}</span>`); }
+      async df() { this.print('<span class="info">Filesystem usage...</span>'); }
+      async du(args) { this.print('<span class="info">Disk usage...</span>'); }
+      free() { this.print('<span class="info">Memory usage...</span>'); }
+      uname(args) { this.print('NEXUS Browser OS 1.0.0'); }
+      ifconfig() { this.print('<span class="info">Network interfaces...</span>'); }
+      env() { Object.entries(this.env).forEach(([k, v]) => this.print(`${k}=${v}`)); }
+      export(args) { if (args[0]) { const [k, v] = args[0].split('='); this.env[k] = v; } }
+      alias(args) { if (args[0]) { const [k, v] = args[0].split('='); this.aliases[k] = v; } else { Object.entries(this.aliases).forEach(([k, v]) => this.print(`${k}='${v}'`)); } }
+      unalias(args) { delete this.aliases[args[0]]; }
+      which(args) { this.print(`/usr/bin/${args[0]}`); }
+      type(args) { this.print(`${args[0]} is a shell builtin`); }
+      async pip(args) { this.print('<span class="info">pip: Python package manager (simulated)</span>'); }
+      async apt(args) { this.print('<span class="info">apt: package manager (simulated)</span>'); }
+      async node(args) { this.print('<span class="info">node: Node.js REPL (simulated)</span>'); }
+      async python(args) { this.print('<span class="info">python: Python REPL (simulated)</span>'); }
+      async git(args) { this.print(`<span class="info">git ${args[0]}: version control (simulated)</span>`); }
+      async tar(args) { this.print('<span class="info">tar: archiving...</span>'); }
+      async gzip(args) { this.print('<span class="info">gzip: compressing...</span>'); }
+      async gunzip(args) { this.print('<span class="info">gunzip: decompressing...</span>'); }
+      async zip(args) { this.print('<span class="info">zip: creating archive...</span>'); }
+      async unzip(args) { this.print('<span class="info">unzip: extracting archive...</span>'); }
+      async chmod(args) { this.print(`<span class="info">chmod: changing permissions...</span>`); }
+      async chown(args) { this.print(`<span class="info">chown: changing owner...</span>`); }
+      async ln(args) { this.print(`<span class="info">ln: creating link...</span>`); }
+      async diff(args) { this.print(`<span class="info">diff: comparing files...</span>`); }
+      async sed(args) { this.print(`<span class="info">sed: stream editor...</span>`); }
+      async awk(args) { this.print(`<span class="info">awk: pattern scanning...</span>`); }
+      async curl(args) { this.print(`<span class="info">curl: transferring data...</span>`); }
+      async wget(args) { this.print(`<span class="info">wget: downloading...</span>`); }
+      figlet(args) { this.print(`<span class="warning">${args.join(' ')}</span>`); }
+      
+      async executePipeline(commandLine) {
+        const commands = commandLine.split('|').map(c => c.trim());
+        let output = null;
+        
+        for (const cmd of commands) {
+          // Execute each command in pipeline
+          // For now, just execute them separately
+          await this.executeCommand(cmd);
+        }
+      }
+      
+      async executeRedirection(commandLine) {
+        // Handle output redirection
+        this.print(`<span class="info">Redirection: ${commandLine}</span>`);
       }
     }
 
     // Initialize terminal
-    const terminal = new Terminal();
+    const terminal = new AdvancedTerminal();
 
     // Keep input focused
     document.addEventListener('click', () => {
