@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Editor</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a24;
+      color: #e8e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .toolbar {
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 12px 16px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .toolbar-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: none;
+      border-radius: 6px;
+      color: #e8e8f0;
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .toolbar-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .toolbar-btn.primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.1);
+      margin: 0 8px;
+    }
+
+    select {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #e8e8f0;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .tabs {
+      background: rgba(0, 0, 0, 0.1);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 16px;
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+    }
+
+    .tab {
+      background: rgba(255, 255, 255, 0.05);
+      border: none;
+      border-radius: 6px 6px 0 0;
+      color: #9090a8;
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+    }
+
+    .tab.active {
+      background: rgba(102, 126, 234, 0.2);
+      color: #667eea;
+    }
+
+    .tab-close {
+      color: #9090a8;
+      cursor: pointer;
+    }
+
+    .tab-close:hover {
+      color: #ff5555;
+    }
+
+    .editor-container {
+      flex: 1;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .line-numbers {
+      background: rgba(0, 0, 0, 0.2);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 16px 8px;
+      text-align: right;
+      font-family: 'Courier New', Monaco, monospace;
+      font-size: 14px;
+      color: #9090a8;
+      user-select: none;
+      min-width: 50px;
+    }
+
+    .editor-wrapper {
+      flex: 1;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .editor {
+      width: 100%;
+      height: 100%;
+      min-height: 100%;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #e8e8f0;
+      font-family: 'Courier New', Monaco, monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 16px;
+      resize: none;
+      tab-size: 2;
+    }
+
+    .editor::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .editor::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .editor::-webkit-scrollbar-thumb {
+      background: rgba(102, 126, 234, 0.3);
+      border-radius: 4px;
+    }
+
+    .status-bar {
+      background: rgba(0, 0, 0, 0.2);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #9090a8;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .syntax-highlight {
+      position: absolute;
+      inset: 0;
+      padding: 16px;
+      pointer-events: none;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: 'Courier New', Monaco, monospace;
+      font-size: 14px;
+      line-height: 1.6;
+      color: transparent;
+    }
+
+    .keyword { color: #ff79c6; }
+    .string { color: #f1fa8c; }
+    .comment { color: #6272a4; }
+    .function { color: #50fa7b; }
+    .number { color: #bd93f9; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="toolbar-btn primary" id="save-btn">Save</button>
+    <button class="toolbar-btn" id="new-btn">New</button>
+    <button class="toolbar-btn" id="open-btn">Open</button>
+    <div class="toolbar-divider"></div>
+    <select id="language-select">
+      <option value="javascript">JavaScript</option>
+      <option value="html">HTML</option>
+      <option value="css">CSS</option>
+      <option value="python">Python</option>
+      <option value="json">JSON</option>
+      <option value="markdown">Markdown</option>
+      <option value="plaintext">Plain Text</option>
+    </select>
+    <select id="theme-select">
+      <option value="dark">Dark Theme</option>
+      <option value="light">Light Theme</option>
+    </select>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-tab="0">
+      <span>untitled.js</span>
+      <span class="tab-close">×</span>
+    </div>
+  </div>
+
+  <div class="editor-container">
+    <div class="line-numbers" id="line-numbers">1</div>
+    <div class="editor-wrapper">
+      <textarea class="editor" id="editor" placeholder="Start coding..." spellcheck="false"></textarea>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span id="status-text">Ready</span>
+    <span id="cursor-position">Line 1, Column 1</span>
+    <span id="file-info">JavaScript | UTF-8</span>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════
+    // CODE EDITOR APP
+    // ═══════════════════════════════════════════════
+
+    class CodeEditor {
+      constructor() {
+        this.pid = null;
+        this.currentTab = 0;
+        this.tabs = [{
+          id: 0,
+          name: 'untitled.js',
+          content: '',
+          language: 'javascript',
+          saved: true
+        }];
+        this.nextTabId = 1;
+
+        this.editor = document.getElementById('editor');
+        this.lineNumbers = document.getElementById('line-numbers');
+
+        this.init();
+      }
+
+      init() {
+        this.setupEventListeners();
+        this.updateLineNumbers();
+        this.notifyParentReady();
+
+        window.addEventListener('message', (e) => {
+          if (e.data.type === 'kernel:config') {
+            this.pid = e.data.pid;
+            console.log('[CodeEditor] Received config, PID:', this.pid);
+          }
+        });
+      }
+
+      setupEventListeners() {
+        const saveBtn = document.getElementById('save-btn');
+        const newBtn = document.getElementById('new-btn');
+        const openBtn = document.getElementById('open-btn');
+        const languageSelect = document.getElementById('language-select');
+        const themeSelect = document.getElementById('theme-select');
+
+        saveBtn.addEventListener('click', () => this.saveCurrentTab());
+        newBtn.addEventListener('click', () => this.createNewTab());
+        openBtn.addEventListener('click', () => this.openFile());
+
+        languageSelect.addEventListener('change', (e) => {
+          this.setLanguage(e.target.value);
+        });
+
+        themeSelect.addEventListener('change', (e) => {
+          this.setTheme(e.target.value);
+        });
+
+        this.editor.addEventListener('input', () => {
+          this.updateLineNumbers();
+          this.updateCursorPosition();
+          this.markTabUnsaved();
+        });
+
+        this.editor.addEventListener('click', () => {
+          this.updateCursorPosition();
+        });
+
+        this.editor.addEventListener('keyup', (e) => {
+          if (e.key.startsWith('Arrow')) {
+            this.updateCursorPosition();
+          }
+        });
+
+        this.editor.addEventListener('scroll', () => {
+          this.lineNumbers.scrollTop = this.editor.scrollTop;
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+          if (e.ctrlKey || e.metaKey) {
+            if (e.key === 's') {
+              e.preventDefault();
+              this.saveCurrentTab();
+            } else if (e.key === 'n') {
+              e.preventDefault();
+              this.createNewTab();
+            } else if (e.key === 'o') {
+              e.preventDefault();
+              this.openFile();
+            } else if (e.key === 'w') {
+              e.preventDefault();
+              this.closeCurrentTab();
+            }
+          }
+        });
+
+        // Tab support (insert 2 spaces)
+        this.editor.addEventListener('keydown', (e) => {
+          if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = this.editor.selectionStart;
+            const end = this.editor.selectionEnd;
+            const value = this.editor.value;
+
+            this.editor.value = value.substring(0, start) + '  ' + value.substring(end);
+            this.editor.selectionStart = this.editor.selectionEnd = start + 2;
+
+            this.updateLineNumbers();
+          }
+        });
+      }
+
+      updateLineNumbers() {
+        const lines = this.editor.value.split('\n').length;
+        const numbers = Array.from({ length: lines }, (_, i) => i + 1).join('\n');
+        this.lineNumbers.textContent = numbers;
+      }
+
+      updateCursorPosition() {
+        const pos = this.editor.selectionStart;
+        const content = this.editor.value.substring(0, pos);
+        const lines = content.split('\n');
+        const line = lines.length;
+        const col = lines[lines.length - 1].length + 1;
+
+        document.getElementById('cursor-position').textContent = `Line ${line}, Column ${col}`;
+      }
+
+      createNewTab() {
+        const tabId = this.nextTabId++;
+        const newTab = {
+          id: tabId,
+          name: `untitled-${tabId}.js`,
+          content: '',
+          language: 'javascript',
+          saved: true
+        };
+
+        this.tabs.push(newTab);
+        this.switchToTab(tabId);
+        this.renderTabs();
+      }
+
+      switchToTab(tabId) {
+        // Save current tab content
+        const currentTab = this.tabs.find(t => t.id === this.currentTab);
+        if (currentTab) {
+          currentTab.content = this.editor.value;
+        }
+
+        // Switch to new tab
+        this.currentTab = tabId;
+        const tab = this.tabs.find(t => t.id === tabId);
+        if (tab) {
+          this.editor.value = tab.content;
+          document.getElementById('language-select').value = tab.language;
+          this.updateLineNumbers();
+          this.updateCursorPosition();
+          this.updateFileInfo();
+        }
+      }
+
+      closeTab(tabId) {
+        const tabIndex = this.tabs.findIndex(t => t.id === tabId);
+        if (tabIndex === -1) return;
+
+        const tab = this.tabs[tabIndex];
+        if (!tab.saved) {
+          if (!confirm(`${tab.name} has unsaved changes. Close anyway?`)) {
+            return;
+          }
+        }
+
+        this.tabs.splice(tabIndex, 1);
+
+        if (this.tabs.length === 0) {
+          this.createNewTab();
+        } else if (tabId === this.currentTab) {
+          this.switchToTab(this.tabs[Math.max(0, tabIndex - 1)].id);
+        }
+
+        this.renderTabs();
+      }
+
+      closeCurrentTab() {
+        this.closeTab(this.currentTab);
+      }
+
+      renderTabs() {
+        const tabsContainer = document.getElementById('tabs');
+        tabsContainer.innerHTML = this.tabs.map(tab => `
+          <div class="tab ${tab.id === this.currentTab ? 'active' : ''}" data-tab="${tab.id}">
+            <span>${tab.name}${tab.saved ? '' : ' *'}</span>
+            <span class="tab-close" data-tab="${tab.id}">×</span>
+          </div>
+        `).join('');
+
+        tabsContainer.querySelectorAll('.tab').forEach(tabEl => {
+          const tabId = parseInt(tabEl.dataset.tab);
+          
+          tabEl.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('tab-close')) {
+              this.switchToTab(tabId);
+              this.renderTabs();
+            }
+          });
+
+          const closeBtn = tabEl.querySelector('.tab-close');
+          if (closeBtn) {
+            closeBtn.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.closeTab(tabId);
+            });
+          }
+        });
+      }
+
+      markTabUnsaved() {
+        const tab = this.tabs.find(t => t.id === this.currentTab);
+        if (tab) {
+          tab.saved = false;
+          this.renderTabs();
+        }
+      }
+
+      saveCurrentTab() {
+        const tab = this.tabs.find(t => t.id === this.currentTab);
+        if (!tab) return;
+
+        tab.content = this.editor.value;
+        tab.saved = true;
+
+        window.parent.postMessage({
+          type: 'storage:set',
+          pid: this.pid,
+          data: {
+            key: `code_${tab.name}`,
+            value: tab.content
+          }
+        }, '*');
+
+        this.renderTabs();
+        this.updateStatus('Saved successfully');
+
+        console.log('[CodeEditor] File saved:', tab.name);
+      }
+
+      openFile() {
+        const filename = prompt('Enter filename:');
+        if (!filename) return;
+
+        // Request file from storage
+        window.parent.postMessage({
+          type: 'storage:get',
+          pid: this.pid,
+          data: { key: `code_${filename}` }
+        }, '*');
+
+        // Listen for response (simplified)
+        this.updateStatus(`Opening ${filename}...`);
+      }
+
+      setLanguage(lang) {
+        const tab = this.tabs.find(t => t.id === this.currentTab);
+        if (tab) {
+          tab.language = lang;
+          this.updateFileInfo();
+        }
+      }
+
+      setTheme(theme) {
+        if (theme === 'light') {
+          document.body.style.background = '#f5f5f5';
+          document.body.style.color = '#2d3748';
+          this.editor.style.color = '#2d3748';
+        } else {
+          document.body.style.background = '#1a1a24';
+          document.body.style.color = '#e8e8f0';
+          this.editor.style.color = '#e8e8f0';
+        }
+      }
+
+      updateFileInfo() {
+        const tab = this.tabs.find(t => t.id === this.currentTab);
+        if (tab) {
+          const lang = tab.language.charAt(0).toUpperCase() + tab.language.slice(1);
+          document.getElementById('file-info').textContent = `${lang} | UTF-8`;
+        }
+      }
+
+      updateStatus(text) {
+        document.getElementById('status-text').textContent = text;
+        setTimeout(() => {
+          document.getElementById('status-text').textContent = 'Ready';
+        }, 3000);
+      }
+
+      notifyParentReady() {
+        console.log('[CodeEditor] Notifying parent: app ready');
+        window.parent.postMessage({
+          type: 'app:ready',
+          pid: this.pid
+        }, '*');
+      }
+    }
+
+    const codeEditor = new CodeEditor();
+    console.log('[CodeEditor] App initialized');
+  </script>
+</body>
+</html>
