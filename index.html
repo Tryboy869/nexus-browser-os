@@ -48,7 +48,6 @@
       overflow-y: auto;
     }
 
-    /* App Icons */
     .app-icon {
       width: 100px;
       height: 100px;
@@ -302,55 +301,9 @@
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(255, 255, 255, 0.3);
     }
-
-    /* Loading Screen */
-    #loading-screen {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: var(--bg-desktop);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      z-index: 99999;
-      transition: opacity 0.5s;
-    }
-
-    #loading-screen.hidden {
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    .loading-spinner {
-      width: 50px;
-      height: 50px;
-      border: 4px solid var(--border);
-      border-top-color: var(--primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .loading-text {
-      font-size: 18px;
-      color: var(--text-secondary);
-    }
   </style>
 </head>
 <body>
-  <!-- Loading Screen -->
-  <div id="loading-screen">
-    <div class="loading-spinner"></div>
-    <div class="loading-text">Démarrage de NEXUS OS...</div>
-  </div>
-
   <!-- Desktop -->
   <div id="desktop"></div>
 
@@ -374,6 +327,9 @@
       </div>
       <div class="system-icon" title="Volume">
         <sl-icon name="volume-2"></sl-icon>
+      </div>
+      <div class="system-icon" title="Power" onclick="showPowerMenu()">
+        <sl-icon name="power"></sl-icon>
       </div>
       <div style="margin-left: 10px; font-weight: 500;">
         <span id="clock">00:00</span>
@@ -404,29 +360,49 @@
       <sl-icon name="settings"></sl-icon>
       Paramètres
     </div>
+    <div class="context-menu-item" onclick="BrowserOS.openApp('system-test')">
+      <sl-icon name="activity"></sl-icon>
+      Tests système
+    </div>
   </div>
 
   <!-- System Scripts -->
-  <script type="module" src="system/kernel.js"></script>
-  <script type="module" src="system/state.js"></script>
-  <script type="module" src="system/window-manager.js"></script>
-  <script type="module" src="system/router.js"></script>
-  <script type="module" src="system/notifications.js"></script>
-  
   <script type="module">
     import { Kernel } from './system/kernel.js';
+    import { BootSequence, ShutdownSequence } from './system/boot.js';
+    import { LDSSManager } from './system/ldss-integration.js';
+    import { UserProfile } from './system/user-profile.js';
     
-    // Initialize Browser OS
-    window.BrowserOS = new Kernel();
+    // Initialize Boot Sequence
+    const bootSequence = new BootSequence();
     
-    // Boot system
-    window.addEventListener('DOMContentLoaded', async () => {
+    // Start boot
+    bootSequence.start().then(async () => {
+      // Initialize LDSS
+      const ldssManager = new LDSSManager();
+      await ldssManager.init();
+      
+      // Initialize User Profile
+      const userProfile = new UserProfile(ldssManager);
+      await userProfile.load();
+      
+      // First boot setup
+      if (userProfile.isFirstBoot()) {
+        await userProfile.showFirstBootSetup();
+      }
+      
+      // Initialize Browser OS
+      window.BrowserOS = new Kernel();
+      window.BrowserOS.ldssManager = ldssManager;
+      window.BrowserOS.userProfile = userProfile;
+      
+      // Boot system
       await window.BrowserOS.boot();
       
-      // Hide loading screen
-      setTimeout(() => {
-        document.getElementById('loading-screen').classList.add('hidden');
-      }, 1000);
+      // Auto-save state every 30 seconds
+      setInterval(async () => {
+        await window.BrowserOS.saveState();
+      }, 30000);
     });
     
     // Update clock
@@ -479,6 +455,30 @@
         const name = app.dataset.name.toLowerCase();
         app.style.display = name.includes(query) ? 'flex' : 'none';
       });
+    });
+    
+    // Power menu
+    window.showPowerMenu = function() {
+      const choice = confirm('Voulez-vous éteindre le système ?\n\nOK = Éteindre\nAnnuler = Mettre en veille');
+      
+      if (choice) {
+        const shutdown = new ShutdownSequence();
+        shutdown.start();
+      } else {
+        // Sleep mode (just minimize all windows)
+        if (window.BrowserOS) {
+          window.BrowserOS.windowManager.getAllWindows().forEach(w => {
+            window.BrowserOS.windowManager.minimize(w.id);
+          });
+        }
+      }
+    };
+    
+    // Save state before unload
+    window.addEventListener('beforeunload', async () => {
+      if (window.BrowserOS && window.BrowserOS.saveState) {
+        await window.BrowserOS.saveState();
+      }
     });
   </script>
 </body>
