@@ -701,14 +701,44 @@
         window.addEventListener('message', (e) => {
           try {
             const { type, pid, data } = e.data;
-            this.routeMessage(type, pid, data, e.source);
+            
+            // Si pas de PID fourni, essayer de le trouver via e.source
+            let actualPid = pid;
+            
+            if (!actualPid || actualPid === null) {
+              // Chercher l'app par son iframe source
+              for (const [appPid, app] of this.apps.entries()) {
+                if (app.iframe && app.iframe.contentWindow === e.source) {
+                  actualPid = appPid;
+                  this.logger.info('IPC', { 
+                    action: 'pid_resolved_from_source', 
+                    resolvedPid: actualPid 
+                  });
+                  break;
+                }
+              }
+            }
+            
+            this.routeMessage(type, actualPid, data, e.source);
           } catch (error) {
-            this.logger.error('IPC', { message: 'Message handling failed', error: error.message });
+            this.logger.error('IPC', { 
+              action: 'message_handling_failed', 
+              error: error.message,
+              stack: error.stack 
+            });
           }
         });
       }
 
       routeMessage(type, pid, data, source) {
+        this.logger.info('IPC', { 
+          action: 'message_received', 
+          type, 
+          pid, 
+          hasData: !!data,
+          hasSource: !!source
+        });
+
         const routes = {
           'app:ready': () => this.handleAppReady(pid, source),
           'app:close': () => this.closeApp(pid),
@@ -717,12 +747,20 @@
           'app:update': (data) => this.handleAppUpdate(pid, data),
           'storage:set': (data) => this.storage.set(data.key, data.value),
           'storage:get': (data) => this.storage.get(data.key),
-          'ipc:emit': (data) => this.ipc.emit(data.event, data.payload)
+          'ipc:emit': (data) => this.ipc.emit(data.event, data.payload),
+          'system:info:request': () => this.getSystemInfo(),
+          'process:list:request': () => this.getProcessList(),
+          'process:kill': (data) => this.closeApp(data.targetPid)
         };
 
         const handler = routes[type];
+        
         if (!handler) {
-          this.logger.warn('IPC', { message: 'Unknown message type', type });
+          this.logger.warn('IPC', { 
+            action: 'unknown_message_type', 
+            type, 
+            availableTypes: Object.keys(routes) 
+          });
           return;
         }
 
@@ -796,33 +834,59 @@
 
           this.updateTaskbar();
 
-          await this.waitForAppReady(pid, 5000);
+          // Attendre que l'app soit ready (10s max)
+          await this.waitForAppReady(pid, 10000);
 
-          this.logger.info('APP', { action: 'ready', appName, pid });
+          this.logger.info('APP', { action: 'launch_success', appName, pid });
 
           return pid;
 
         } catch (error) {
-          this.logger.error('APP', { action: 'launch_failed', appName, error: error.message });
-          this.closeApp(pid);
-          throw error;
+          this.logger.error('APP', { action: 'launch_failed', appName, pid, error: error.message });
+          
+          // NE PAS fermer l'app automatiquement - elle peut fonctionner quand même
+          // L'utilisateur peut la fermer manuellement si besoin
+          
+          return pid; // Retourner le PID quand même
         }
       }
 
-      waitForAppReady(pid, timeout = 5000) {
+      waitForAppReady(pid, timeout = 10000) {
         return new Promise((resolve, reject) => {
-          const timeoutId = setTimeout(() => {
-            reject(new Error(`App ${pid} failed to initialize (timeout)`));
-          }, timeout);
+          let attempts = 0;
+          const maxAttempts = timeout / 100;
 
           const checkReady = () => {
             const app = this.apps.get(pid);
-            if (app && app.state === 'ready') {
-              clearTimeout(timeoutId);
-              resolve();
-            } else {
-              setTimeout(checkReady, 100);
+            
+            if (!app) {
+              this.logger.error('APP', { action: 'wait_ready_failed', pid, reason: 'app not found' });
+              reject(new Error(`App ${pid} not found`));
+              return;
             }
+
+            if (app.state === 'ready') {
+              this.logger.info('APP', { action: 'wait_ready_success', pid, attempts });
+              resolve();
+              return;
+            }
+
+            attempts++;
+            
+            if (attempts >= maxAttempts) {
+              this.logger.warn('APP', { 
+                action: 'wait_ready_timeout', 
+                pid, 
+                attempts, 
+                currentState: app.state,
+                message: 'App did not send app:ready in time - continuing anyway'
+              });
+              // NE PAS rejeter, juste résoudre quand même
+              resolve();
+              return;
+            }
+
+            setTimeout(checkReady, 100);
           };
 
           checkReady();
@@ -830,23 +894,49 @@
       }
 
       handleAppReady(pid, source) {
+        this.logger.info('IPC', { 
+          action: 'app_ready_received', 
+          pid, 
+          hasSource: !!source 
+        });
+
         const app = this.apps.get(pid);
-        if (!app) return;
+        
+        if (!app) {
+          this.logger.error('IPC', { 
+            action: 'app_ready_failed', 
+            pid, 
+            reason: 'app not found in apps map' 
+          });
+          return;
+        }
 
         app.state = 'ready';
         app.source = source;
 
-        source.postMessage({
-          type: 'kernel:config',
-          data: {
-            pid,
-            appName: app.name,
-            storage: { available: true },
-            ipc: { available: true }
-          }
-        }, '*');
+        // Envoyer config à l'app
+        if (source) {
+          source.postMessage({
+            type: 'kernel:config',
+            data: {
+              pid,
+              appName: app.name,
+              storage: { available: true },
+              ipc: { available: true }
+            }
+          }, '*');
 
-        this.logger.info('APP', { action: 'app_ready_confirmed', pid, name: app.name });
+          this.logger.info('IPC', { 
+            action: 'kernel_config_sent', 
+            pid, 
+            appName: app.name 
+          });
+        } else {
+          this.logger.warn('IPC', { 
+            action: 'no_source_for_response', 
+            pid 
+          });
+        }
       }
 
       handleAppUpdate(pid, data) {
@@ -906,6 +996,15 @@
           logs: this.logger.getStats(),
           storage: this.storage.getStats()
         };
+      }
+
+      getProcessList() {
+        return Array.from(this.apps.values()).map(app => ({
+          pid: app.pid,
+          name: app.name,
+          state: app.state,
+          launchedAt: app.launchedAt
+        }));
       }
 
       async boot() {
@@ -1051,6 +1150,19 @@
         console.error('[DEBUG] Boot failed:', error);
       });
     });
+
+    // Register Service Worker
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('[SW] Service Worker registered:', registration.scope);
+          })
+          .catch((error) => {
+            console.error('[SW] Service Worker registration failed:', error);
+          });
+      });
+    }
 
     console.log('[NEXUS OS] System loaded. Click Power On to boot.');
   </script>
