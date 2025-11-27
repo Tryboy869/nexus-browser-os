@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>File Manager</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a24;
+      color: #e8e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .toolbar {
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 12px 16px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .toolbar-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: none;
+      border-radius: 6px;
+      color: #e8e8f0;
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .toolbar-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .toolbar-btn.primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .breadcrumb {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #9090a8;
+      overflow-x: auto;
+    }
+
+    .breadcrumb-item {
+      cursor: pointer;
+      transition: color 0.2s ease;
+    }
+
+    .breadcrumb-item:hover {
+      color: #667eea;
+    }
+
+    .breadcrumb-separator {
+      color: #9090a8;
+    }
+
+    .content {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 200px;
+      background: rgba(0, 0, 0, 0.1);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 16px;
+    }
+
+    .sidebar-item {
+      padding: 8px 12px;
+      margin-bottom: 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: background 0.2s ease;
+    }
+
+    .sidebar-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .sidebar-item.active {
+      background: rgba(102, 126, 234, 0.2);
+      color: #667eea;
+    }
+
+    .file-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .file-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 16px;
+    }
+
+    .file-item {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .file-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .file-item.selected {
+      background: rgba(102, 126, 234, 0.3);
+      border: 2px solid #667eea;
+    }
+
+    .file-icon {
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
+
+    .file-name {
+      font-size: 12px;
+      word-break: break-word;
+    }
+
+    .context-menu {
+      position: fixed;
+      background: rgba(26, 26, 36, 0.98);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 8px;
+      display: none;
+      z-index: 1000;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    }
+
+    .context-menu.visible {
+      display: block;
+    }
+
+    .context-menu-item {
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      white-space: nowrap;
+      transition: background 0.2s ease;
+    }
+
+    .context-menu-item:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .status-bar {
+      background: rgba(0, 0, 0, 0.2);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #9090a8;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #9090a8;
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="toolbar-btn" id="back-btn">Back</button>
+    <button class="toolbar-btn" id="forward-btn">Forward</button>
+    <button class="toolbar-btn" id="up-btn">Up</button>
+    <button class="toolbar-btn primary" id="new-folder-btn">New Folder</button>
+    <button class="toolbar-btn" id="refresh-btn">Refresh</button>
+    <div class="breadcrumb" id="breadcrumb"></div>
+  </div>
+
+  <div class="content">
+    <div class="sidebar">
+      <div class="sidebar-item active" data-path="/">Home</div>
+      <div class="sidebar-item" data-path="/home/user/Documents">Documents</div>
+      <div class="sidebar-item" data-path="/home/user/Downloads">Downloads</div>
+      <div class="sidebar-item" data-path="/home/user/Desktop">Desktop</div>
+    </div>
+
+    <div class="file-list" id="file-list">
+      <div class="file-grid" id="file-grid"></div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span id="status-text">Ready</span>
+    <span id="item-count">0 items</span>
+  </div>
+
+  <div class="context-menu" id="context-menu">
+    <div class="context-menu-item" data-action="open">Open</div>
+    <div class="context-menu-item" data-action="rename">Rename</div>
+    <div class="context-menu-item" data-action="delete">Delete</div>
+    <div class="context-menu-item" data-action="properties">Properties</div>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════
+    // FILE MANAGER APP
+    // ═══════════════════════════════════════════════
+
+    class FileManager {
+      constructor() {
+        this.pid = null;
+        this.currentPath = '/home/user';
+        this.history = ['/home/user'];
+        this.historyIndex = 0;
+        this.selectedItems = new Set();
+
+        this.filesystem = {
+          '/': ['home', 'etc', 'usr', 'var'],
+          '/home': ['user'],
+          '/home/user': ['Documents', 'Downloads', 'Desktop', 'Pictures'],
+          '/home/user/Documents': ['notes.txt', 'readme.md', 'report.pdf'],
+          '/home/user/Downloads': ['installer.exe', 'archive.zip'],
+          '/home/user/Desktop': ['shortcut.lnk'],
+          '/home/user/Pictures': ['photo1.jpg', 'photo2.png'],
+          '/etc': ['config.conf', 'hosts'],
+          '/usr': ['bin', 'lib'],
+          '/usr/bin': ['bash', 'ls', 'cat'],
+          '/usr/lib': ['libc.so'],
+          '/var': ['log', 'cache'],
+          '/var/log': ['system.log', 'errors.log'],
+          '/var/cache': []
+        };
+
+        this.init();
+      }
+
+      init() {
+        this.setupEventListeners();
+        this.renderCurrentPath();
+        this.notifyParentReady();
+
+        window.addEventListener('message', (e) => {
+          if (e.data.type === 'kernel:config') {
+            this.pid = e.data.pid;
+            console.log('[FileManager] Received config, PID:', this.pid);
+          }
+        });
+      }
+
+      setupEventListeners() {
+        document.getElementById('back-btn').addEventListener('click', () => this.navigateBack());
+        document.getElementById('forward-btn').addEventListener('click', () => this.navigateForward());
+        document.getElementById('up-btn').addEventListener('click', () => this.navigateUp());
+        document.getElementById('new-folder-btn').addEventListener('click', () => this.createNewFolder());
+        document.getElementById('refresh-btn').addEventListener('click', () => this.refresh());
+
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+          item.addEventListener('click', () => {
+            const path = item.dataset.path;
+            this.navigateTo(path);
+          });
+        });
+
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('.context-menu')) {
+            this.hideContextMenu();
+          }
+        });
+
+        document.querySelectorAll('.context-menu-item').forEach(item => {
+          item.addEventListener('click', () => {
+            this.handleContextMenuAction(item.dataset.action);
+          });
+        });
+      }
+
+      renderCurrentPath() {
+        const items = this.filesystem[this.currentPath] || [];
+        const grid = document.getElementById('file-grid');
+        const breadcrumb = document.getElementById('breadcrumb');
+
+        // Render breadcrumb
+        const parts = this.currentPath.split('/').filter(p => p);
+        breadcrumb.innerHTML = `
+          <span class="breadcrumb-item" data-path="/">Root</span>
+          ${parts.map((part, idx) => {
+            const path = '/' + parts.slice(0, idx + 1).join('/');
+            return `<span class="breadcrumb-separator">/</span>
+                    <span class="breadcrumb-item" data-path="${path}">${part}</span>`;
+          }).join('')}
+        `;
+
+        breadcrumb.querySelectorAll('.breadcrumb-item').forEach(item => {
+          item.addEventListener('click', () => {
+            this.navigateTo(item.dataset.path);
+          });
+        });
+
+        // Render files
+        if (items.length === 0) {
+          grid.innerHTML = '<div class="empty-state">This folder is empty</div>';
+        } else {
+          grid.innerHTML = items.map(item => {
+            const fullPath = this.currentPath === '/' ? `/${item}` : `${this.currentPath}/${item}`;
+            const isFolder = !!this.filesystem[fullPath];
+            const icon = isFolder ? '📁' : this.getFileIcon(item);
+
+            return `
+              <div class="file-item" data-path="${fullPath}" data-name="${item}">
+                <div class="file-icon">${icon}</div>
+                <div class="file-name">${item}</div>
+              </div>
+            `;
+          }).join('');
+
+          grid.querySelectorAll('.file-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+              if (e.ctrlKey || e.metaKey) {
+                item.classList.toggle('selected');
+              } else {
+                grid.querySelectorAll('.file-item').forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+              }
+            });
+
+            item.addEventListener('dblclick', () => {
+              const path = item.dataset.path;
+              if (this.filesystem[path]) {
+                this.navigateTo(path);
+              } else {
+                this.openFile(item.dataset.name);
+              }
+            });
+
+            item.addEventListener('contextmenu', (e) => {
+              e.preventDefault();
+              this.showContextMenu(e.clientX, e.clientY, item.dataset.path);
+            });
+          });
+        }
+
+        document.getElementById('item-count').textContent = `${items.length} item${items.length !== 1 ? 's' : ''}`;
+        document.getElementById('status-text').textContent = this.currentPath;
+      }
+
+      getFileIcon(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        const icons = {
+          'txt': '📄',
+          'md': '📝',
+          'pdf': '📕',
+          'doc': '📘',
+          'docx': '📘',
+          'xls': '📊',
+          'xlsx': '📊',
+          'jpg': '🖼️',
+          'jpeg': '🖼️',
+          'png': '🖼️',
+          'gif': '🖼️',
+          'mp3': '🎵',
+          'mp4': '🎬',
+          'zip': '🗜️',
+          'rar': '🗜️',
+          'exe': '⚙️',
+          'sh': '⚙️',
+          'js': '💻',
+          'html': '🌐',
+          'css': '🎨'
+        };
+        return icons[ext] || '📄';
+      }
+
+      navigateTo(path) {
+        if (!this.filesystem[path]) return;
+
+        this.currentPath = path;
+        this.history = this.history.slice(0, this.historyIndex + 1);
+        this.history.push(path);
+        this.historyIndex = this.history.length - 1;
+
+        this.renderCurrentPath();
+      }
+
+      navigateBack() {
+        if (this.historyIndex > 0) {
+          this.historyIndex--;
+          this.currentPath = this.history[this.historyIndex];
+          this.renderCurrentPath();
+        }
+      }
+
+      navigateForward() {
+        if (this.historyIndex < this.history.length - 1) {
+          this.historyIndex++;
+          this.currentPath = this.history[this.historyIndex];
+          this.renderCurrentPath();
+        }
+      }
+
+      navigateUp() {
+        if (this.currentPath === '/') return;
+
+        const parts = this.currentPath.split('/').filter(p => p);
+        parts.pop();
+        const parentPath = parts.length === 0 ? '/' : '/' + parts.join('/');
+
+        this.navigateTo(parentPath);
+      }
+
+      createNewFolder() {
+        const name = prompt('Folder name:');
+        if (!name) return;
+
+        const newPath = this.currentPath === '/' ? `/${name}` : `${this.currentPath}/${name}`;
+
+        if (this.filesystem[newPath]) {
+          alert('Folder already exists');
+          return;
+        }
+
+        this.filesystem[newPath] = [];
+        this.filesystem[this.currentPath].push(name);
+
+        this.renderCurrentPath();
+      }
+
+      refresh() {
+        this.renderCurrentPath();
+      }
+
+      openFile(filename) {
+        alert(`Opening: ${filename}`);
+      }
+
+      showContextMenu(x, y, path) {
+        const menu = document.getElementById('context-menu');
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        menu.classList.add('visible');
+        menu.dataset.path = path;
+      }
+
+      hideContextMenu() {
+        document.getElementById('context-menu').classList.remove('visible');
+      }
+
+      handleContextMenuAction(action) {
+        const path = document.getElementById('context-menu').dataset.path;
+        const name = path.split('/').pop();
+
+        switch (action) {
+          case 'open':
+            if (this.filesystem[path]) {
+              this.navigateTo(path);
+            } else {
+              this.openFile(name);
+            }
+            break;
+          case 'rename':
+            const newName = prompt('New name:', name);
+            if (newName && newName !== name) {
+              alert(`Renamed to: ${newName}`);
+            }
+            break;
+          case 'delete':
+            if (confirm(`Delete ${name}?`)) {
+              alert(`Deleted: ${name}`);
+            }
+            break;
+          case 'properties':
+            alert(`Properties of: ${name}\nPath: ${path}`);
+            break;
+        }
+
+        this.hideContextMenu();
+      }
+
+      notifyParentReady() {
+        console.log('[FileManager] Notifying parent: app ready');
+        window.parent.postMessage({
+          type: 'app:ready',
+          pid: this.pid
+        }, '*');
+      }
+    }
+
+    const fileManager = new FileManager();
+    console.log('[FileManager] App initialized');
+  </script>
+</body>
+</html>
