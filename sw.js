@@ -1,201 +1,123 @@
-// sw.js - Service Worker for Offline Support (Workbox-inspired)
+// Service Worker for NEXUS Browser OS
+// Enables offline functionality and caching
 
-const CACHE_NAME = 'nexus-os-v1';
-const RUNTIME_CACHE = 'nexus-os-runtime';
-
-// Assets to cache immediately
-const PRECACHE_URLS = [
+const CACHE_NAME = 'nexus-os-v1.0.0';
+const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/system/kernel.js',
-  '/system/state.js',
-  '/system/window-manager.js',
-  '/system/cpu-manager.js',
-  '/system/filesystem.js',
-  '/system/storage.js',
-  '/system/ipc.js',
-  '/system/router.js',
-  '/system/notifications.js'
+  '/apps/calculator/app.html',
+  '/apps/terminal/app.html',
+  '/apps/notepad/app.html',
+  '/apps/task-manager/app.html'
 ];
 
 // Install event - cache assets
 self.addEventListener('install', (event) => {
-  console.log('[ServiceWorker] Installing...');
+  console.log('[SW] Installing service worker...');
   
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('[ServiceWorker] Precaching assets');
-        return cache.addAll(PRECACHE_URLS);
+        console.log('[SW] Caching assets');
+        return cache.addAll(ASSETS_TO_CACHE);
       })
-      .then(() => self.skipWaiting())
+      .then(() => {
+        console.log('[SW] Installation complete');
+        return self.skipWaiting();
+      })
+      .catch((error) => {
+        console.error('[SW] Installation failed:', error);
+      })
   );
 });
 
 // Activate event - clean old caches
 self.addEventListener('activate', (event) => {
-  console.log('[ServiceWorker] Activating...');
+  console.log('[SW] Activating service worker...');
   
   event.waitUntil(
     caches.keys()
       .then((cacheNames) => {
         return Promise.all(
           cacheNames
-            .filter((name) => name !== CACHE_NAME && name !== RUNTIME_CACHE)
+            .filter((name) => name !== CACHE_NAME)
             .map((name) => {
-              console.log('[ServiceWorker] Deleting old cache:', name);
+              console.log('[SW] Deleting old cache:', name);
               return caches.delete(name);
             })
         );
       })
-      .then(() => self.clients.claim())
+      .then(() => {
+        console.log('[SW] Activation complete');
+        return self.clients.claim();
+      })
   );
 });
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
-  const url = new URL(request.url);
-  
-  // Skip non-GET requests
-  if (request.method !== 'GET') {
-    return;
-  }
-  
-  // Skip external requests (CDN, APIs)
-  if (url.origin !== location.origin) {
-    // Cache external resources (CDN)
-    event.respondWith(
-      caches.open(RUNTIME_CACHE).then((cache) => {
-        return cache.match(request).then((response) => {
-          if (response) {
-            // Return cached, but update in background
-            fetch(request).then((networkResponse) => {
-              cache.put(request, networkResponse);
-            }).catch(() => {});
-            
-            return response;
-          }
-          
-          // Fetch from network and cache
-          return fetch(request).then((networkResponse) => {
-            cache.put(request, networkResponse.clone());
-            return networkResponse;
-          }).catch(() => {
-            // Return offline fallback if available
-            return new Response('Offline', { status: 503 });
-          });
-        });
-      })
-    );
-    
-    return;
-  }
-  
-  // Cache-first strategy for same-origin requests
   event.respondWith(
-    caches.match(request)
+    caches.match(event.request)
       .then((cachedResponse) => {
         if (cachedResponse) {
-          // Return cached version
-          console.log('[ServiceWorker] Serving from cache:', url.pathname);
-          
-          // Update cache in background
-          fetch(request)
-            .then((networkResponse) => {
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(request, networkResponse);
-              });
-            })
-            .catch(() => {});
-          
+          console.log('[SW] Serving from cache:', event.request.url);
           return cachedResponse;
         }
-        
-        // Fetch from network and cache
-        console.log('[ServiceWorker] Fetching from network:', url.pathname);
-        
-        return fetch(request)
-          .then((networkResponse) => {
-            // Cache successful responses
-            if (networkResponse.ok) {
-              const responseClone = networkResponse.clone();
-              
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(request, responseClone);
+
+        console.log('[SW] Fetching from network:', event.request.url);
+        return fetch(event.request)
+          .then((response) => {
+            // Don't cache non-successful responses
+            if (!response || response.status !== 200 || response.type !== 'basic') {
+              return response;
+            }
+
+            // Clone response (can only be consumed once)
+            const responseToCache = response.clone();
+
+            caches.open(CACHE_NAME)
+              .then((cache) => {
+                cache.put(event.request, responseToCache);
               });
-            }
-            
-            return networkResponse;
+
+            return response;
           })
-          .catch(() => {
-            // Offline fallback
-            if (request.destination === 'document') {
-              return caches.match('/index.html');
-            }
+          .catch((error) => {
+            console.error('[SW] Fetch failed:', error);
             
-            return new Response('Offline', {
-              status: 503,
-              statusText: 'Service Unavailable',
-              headers: new Headers({
-                'Content-Type': 'text/plain'
-              })
-            });
+            // Return offline page if available
+            return caches.match('/index.html');
           });
       })
   );
 });
 
-// Message event - handle commands from clients
+// Message event - handle messages from clients
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
+  console.log('[SW] Message received:', event.data);
+
+  if (event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  
-  if (event.data && event.data.type === 'CLEAR_CACHE') {
-    event.waitUntil(
-      caches.keys().then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((name) => caches.delete(name))
-        );
-      }).then(() => {
-        event.ports[0].postMessage({ success: true });
-      })
-    );
+
+  if (event.data.type === 'CLEAR_CACHE') {
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((name) => caches.delete(name))
+      );
+    }).then(() => {
+      event.ports[0].postMessage({ success: true });
+    });
   }
-  
-  if (event.data && event.data.type === 'GET_CACHE_SIZE') {
-    event.waitUntil(
-      caches.keys().then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((name) => {
-            return caches.open(name).then((cache) => {
-              return cache.keys().then((keys) => {
-                return { name, count: keys.length };
-              });
-            });
-          })
-        );
-      }).then((results) => {
-        event.ports[0].postMessage({ caches: results });
-      })
-    );
+
+  if (event.data.type === 'GET_CACHE_SIZE') {
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.keys();
+    }).then((keys) => {
+      event.ports[0].postMessage({ size: keys.length });
+    });
   }
 });
 
-// Background sync (if supported)
-if ('sync' in self.registration) {
-  self.addEventListener('sync', (event) => {
-    console.log('[ServiceWorker] Background sync:', event.tag);
-    
-    if (event.tag === 'sync-data') {
-      event.waitUntil(
-        // Sync logic here
-        Promise.resolve()
-      );
-    }
-  });
-}
-
-console.log('[ServiceWorker] Service Worker loaded');
+console.log('[SW] Service Worker script loaded');
