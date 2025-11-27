@@ -4,42 +4,97 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#667eea">
-  <title>NEXUS Browser OS</title>
+  <title>NEXUS OS</title>
   <link rel="manifest" href="/manifest.json">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/themes/dark.css">
   <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.12.0/cdn/shoelace-autoloader.js"></script>
+  <script src="https://ldss-e9kz.onrender.com/ldss-client.js"></script>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
     :root {
       --primary: #667eea;
-      --primary-dark: #5568d3;
-      --secondary: #764ba2;
       --bg-desktop: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #7e22ce 100%);
       --bg-glass: rgba(20, 20, 30, 0.9);
-      --bg-glass-light: rgba(255, 255, 255, 0.05);
-      --text-primary: #e8e8f0;
-      --text-secondary: #9090a8;
-      --border: rgba(255, 255, 255, 0.1);
-      --shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-      background: var(--bg-desktop);
-      color: var(--text-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #000;
+      color: #e8e8f0;
       height: 100vh;
       overflow: hidden;
     }
 
-    /* Desktop */
+    /* BOOT SCREEN */
+    #boot-screen {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+    }
+
+    #boot-screen.hidden { display: none; }
+
+    #power-button {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #764ba2);
+      border: 4px solid rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      box-shadow: 0 0 30px rgba(102,126,234,0.5);
+    }
+
+    #power-button:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 50px rgba(102,126,234,0.8);
+    }
+
+    #power-button.booting {
+      animation: pulse 1s infinite;
+      pointer-events: none;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(0.95); }
+    }
+
+    #boot-logs {
+      margin-top: 40px;
+      font-family: 'Monaco', monospace;
+      font-size: 12px;
+      color: #0f0;
+      max-width: 600px;
+      display: none;
+    }
+
+    #boot-logs.visible { display: block; }
+
+    .boot-log {
+      padding: 2px 0;
+      opacity: 0;
+      animation: fadeIn 0.3s forwards;
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+    /* DESKTOP */
     #desktop {
       height: calc(100vh - 60px);
       padding: 20px;
+      background: var(--bg-desktop);
       display: grid;
       grid-template-columns: repeat(auto-fill, 100px);
       grid-auto-rows: 100px;
@@ -57,41 +112,35 @@
       justify-content: center;
       gap: 8px;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.2s;
       border-radius: 12px;
       padding: 10px;
       user-select: none;
     }
 
     .app-icon:hover {
-      background: var(--bg-glass-light);
-      backdrop-filter: blur(10px);
+      background: rgba(255,255,255,0.1);
       transform: scale(1.05);
-    }
-
-    .app-icon:active {
-      transform: scale(0.95);
     }
 
     .app-icon-image {
       width: 50px;
       height: 50px;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      background: linear-gradient(135deg, var(--primary), #764ba2);
       border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
     .app-icon-label {
       font-size: 12px;
       text-align: center;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-      font-weight: 500;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.5);
     }
 
-    /* Taskbar */
+    /* TASKBAR */
     #taskbar {
       position: fixed;
       bottom: 0;
@@ -100,7 +149,7 @@
       height: 60px;
       background: var(--bg-glass);
       backdrop-filter: blur(20px);
-      border-top: 1px solid var(--border);
+      border-top: 1px solid rgba(255,255,255,0.1);
       display: flex;
       align-items: center;
       padding: 0 20px;
@@ -111,19 +160,16 @@
     #start-button {
       width: 40px;
       height: 40px;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      background: linear-gradient(135deg, var(--primary), #764ba2);
       border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       transition: all 0.2s;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
     }
 
-    #start-button:hover {
-      transform: scale(1.1);
-    }
+    #start-button:hover { transform: scale(1.1); }
 
     #taskbar-apps {
       display: flex;
@@ -134,7 +180,7 @@
     .taskbar-app {
       height: 40px;
       padding: 0 16px;
-      background: var(--bg-glass-light);
+      background: rgba(255,255,255,0.05);
       border-radius: 8px;
       display: flex;
       align-items: center;
@@ -144,14 +190,8 @@
       font-size: 13px;
     }
 
-    .taskbar-app:hover {
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .taskbar-app.active {
-      background: rgba(102, 126, 234, 0.3);
-      border-bottom: 2px solid var(--primary);
-    }
+    .taskbar-app:hover { background: rgba(255,255,255,0.1); }
+    .taskbar-app.active { background: rgba(102,126,234,0.3); }
 
     #system-tray {
       display: flex;
@@ -160,17 +200,7 @@
       font-size: 13px;
     }
 
-    .system-icon {
-      cursor: pointer;
-      opacity: 0.8;
-      transition: opacity 0.2s;
-    }
-
-    .system-icon:hover {
-      opacity: 1;
-    }
-
-    /* Start Menu */
+    /* START MENU */
     #start-menu {
       position: fixed;
       bottom: 70px;
@@ -180,29 +210,27 @@
       background: var(--bg-glass);
       backdrop-filter: blur(20px);
       border-radius: 12px;
-      box-shadow: var(--shadow);
-      border: 1px solid var(--border);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.1);
       display: none;
       flex-direction: column;
       z-index: 10000;
     }
 
-    #start-menu.active {
-      display: flex;
-    }
+    #start-menu.active { display: flex; }
 
     #start-menu-header {
       padding: 20px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
     }
 
     #start-menu-search {
       width: 100%;
-      padding: 12px 16px;
-      background: var(--bg-glass-light);
-      border: 1px solid var(--border);
+      padding: 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
       border-radius: 8px;
-      color: var(--text-primary);
+      color: white;
       font-size: 14px;
       outline: none;
     }
@@ -214,7 +242,6 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 15px;
-      align-content: start;
     }
 
     .start-menu-app {
@@ -228,27 +255,32 @@
       transition: all 0.2s;
     }
 
-    .start-menu-app:hover {
-      background: var(--bg-glass-light);
+    .start-menu-app:hover { background: rgba(255,255,255,0.1); }
+
+    #windows-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 60px;
+      pointer-events: none;
+      z-index: 1000;
     }
 
-    /* Context Menu */
     #context-menu {
       position: fixed;
       background: var(--bg-glass);
       backdrop-filter: blur(20px);
       border-radius: 8px;
       padding: 8px;
-      border: 1px solid var(--border);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.5);
       display: none;
       z-index: 10001;
       min-width: 180px;
     }
 
-    #context-menu.active {
-      display: block;
-    }
+    #context-menu.active { display: block; }
 
     .context-menu-item {
       padding: 10px 14px;
@@ -261,224 +293,151 @@
       font-size: 13px;
     }
 
-    .context-menu-item:hover {
-      background: var(--bg-glass-light);
-    }
+    .context-menu-item:hover { background: rgba(255,255,255,0.1); }
 
-    .context-menu-separator {
-      height: 1px;
-      background: var(--border);
-      margin: 4px 0;
-    }
-
-    /* Windows Container */
-    #windows-container {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 60px;
-      pointer-events: none;
-      z-index: 1000;
-    }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 4px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.3);
-    }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
   </style>
 </head>
 <body>
-  <!-- Desktop -->
-  <div id="desktop"></div>
+  <!-- BOOT SCREEN -->
+  <div id="boot-screen">
+    <div id="power-button">
+      <sl-icon name="power" style="font-size: 40px;"></sl-icon>
+    </div>
+    <div id="boot-logs"></div>
+  </div>
 
-  <!-- Windows Container -->
-  <div id="windows-container"></div>
+  <!-- DESKTOP -->
+  <div id="desktop" style="display:none;"></div>
 
-  <!-- Taskbar -->
-  <div id="taskbar">
+  <!-- TASKBAR -->
+  <div id="taskbar" style="display:none;">
     <div id="start-button">
       <sl-icon name="grid-3x3" style="font-size: 20px;"></sl-icon>
     </div>
-    
     <div id="taskbar-apps"></div>
-    
     <div id="system-tray">
-      <div class="system-icon" title="CPU Usage">
-        <sl-icon name="activity"></sl-icon>
-      </div>
-      <div class="system-icon" title="Network">
-        <sl-icon name="wifi"></sl-icon>
-      </div>
-      <div class="system-icon" title="Volume">
-        <sl-icon name="volume-2"></sl-icon>
-      </div>
-      <div class="system-icon" title="Power" onclick="showPowerMenu()">
-        <sl-icon name="power"></sl-icon>
-      </div>
-      <div style="margin-left: 10px; font-weight: 500;">
-        <span id="clock">00:00</span>
-      </div>
+      <sl-icon name="activity" class="system-icon"></sl-icon>
+      <sl-icon name="wifi" class="system-icon"></sl-icon>
+      <sl-icon name="volume-2" class="system-icon"></sl-icon>
+      <span id="clock">00:00</span>
     </div>
   </div>
 
-  <!-- Start Menu -->
+  <!-- START MENU -->
   <div id="start-menu">
     <div id="start-menu-header">
-      <input 
-        type="text" 
-        id="start-menu-search" 
-        placeholder="Rechercher une application..."
-      >
+      <input type="text" id="start-menu-search" placeholder="Rechercher...">
     </div>
     <div id="start-menu-apps"></div>
   </div>
 
-  <!-- Context Menu -->
+  <!-- CONTEXT MENU -->
   <div id="context-menu">
     <div class="context-menu-item" onclick="BrowserOS.refreshDesktop()">
-      <sl-icon name="refresh-cw"></sl-icon>
-      Actualiser
+      <sl-icon name="refresh-cw"></sl-icon> Actualiser
     </div>
-    <div class="context-menu-separator"></div>
     <div class="context-menu-item" onclick="BrowserOS.openApp('settings')">
-      <sl-icon name="settings"></sl-icon>
-      Paramètres
-    </div>
-    <div class="context-menu-item" onclick="BrowserOS.openApp('system-test')">
-      <sl-icon name="activity"></sl-icon>
-      Tests système
+      <sl-icon name="settings"></sl-icon> Paramètres
     </div>
   </div>
 
-  <!-- System Scripts -->
+  <div id="windows-container"></div>
+
   <script type="module">
-    import { Kernel } from './system/kernel.js';
-    import { BootSequence, ShutdownSequence } from './system/boot.js';
-    import { LDSSManager } from './system/ldss-integration.js';
-    import { UserProfile } from './system/user-profile.js';
+    import { LinuxKernel } from './system/linux-kernel.js';
     
-    // Initialize Boot Sequence
-    const bootSequence = new BootSequence();
+    let kernel;
     
-    // Start boot
-    bootSequence.start().then(async () => {
-      // Initialize LDSS
-      const ldssManager = new LDSSManager();
-      await ldssManager.init();
+    // BOOT SEQUENCE
+    async function bootSequence() {
+      const powerBtn = document.getElementById('power-button');
+      const bootLogs = document.getElementById('boot-logs');
       
-      // Initialize User Profile
-      const userProfile = new UserProfile(ldssManager);
-      await userProfile.load();
+      powerBtn.classList.add('booting');
+      bootLogs.classList.add('visible');
       
-      // First boot setup
-      if (userProfile.isFirstBoot()) {
-        await userProfile.showFirstBootSetup();
+      const logs = [
+        '[BIOS] Initializing system...',
+        '[BIOS] CPU detected: ' + (navigator.hardwareConcurrency || 4) + ' cores',
+        '[BIOS] Memory: ' + (navigator.deviceMemory || 4) + ' GB',
+        '[BOOT] Loading NEXUS Kernel...',
+        '[KERNEL] Initializing subsystems...',
+        '[KERNEL] Mounting filesystems...',
+        '[KERNEL] Starting init process (PID 1)...',
+        '[KERNEL] Loading device drivers...',
+        '[KERNEL] Setting up IPC...',
+        '[KERNEL] Kernel ready',
+        '[INIT] Starting desktop environment...'
+      ];
+      
+      for (const log of logs) {
+        await new Promise(resolve => setTimeout(resolve, 150));
+        const logEl = document.createElement('div');
+        logEl.className = 'boot-log';
+        logEl.textContent = log;
+        bootLogs.appendChild(logEl);
+        bootLogs.scrollTop = bootLogs.scrollHeight;
       }
       
-      // Initialize Browser OS
-      window.BrowserOS = new Kernel();
-      window.BrowserOS.ldssManager = ldssManager;
-      window.BrowserOS.userProfile = userProfile;
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      // Boot system
-      await window.BrowserOS.boot();
+      // Boot kernel
+      kernel = new LinuxKernel();
+      window.BrowserOS = kernel;
+      await kernel.boot();
       
-      // Auto-save state every 30 seconds
-      setInterval(async () => {
-        await window.BrowserOS.saveState();
-      }, 30000);
-    });
-    
-    // Update clock
-    function updateClock() {
-      const now = new Date();
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      document.getElementById('clock').textContent = `${hours}:${minutes}`;
+      // Show desktop
+      document.getElementById('boot-screen').classList.add('hidden');
+      document.getElementById('desktop').style.display = 'grid';
+      document.getElementById('taskbar').style.display = 'flex';
+      
+      // Update clock
+      function updateClock() {
+        const now = new Date();
+        document.getElementById('clock').textContent = 
+          String(now.getHours()).padStart(2,'0') + ':' + 
+          String(now.getMinutes()).padStart(2,'0');
+      }
+      updateClock();
+      setInterval(updateClock, 1000);
     }
     
-    updateClock();
-    setInterval(updateClock, 1000);
+    // Power button click
+    document.getElementById('power-button').addEventListener('click', bootSequence);
     
     // Start button
     document.getElementById('start-button').addEventListener('click', () => {
       document.getElementById('start-menu').classList.toggle('active');
     });
     
-    // Close start menu on outside click
+    // Close menus on outside click
     document.addEventListener('click', (e) => {
-      const startMenu = document.getElementById('start-menu');
-      const startButton = document.getElementById('start-button');
-      
-      if (!startMenu.contains(e.target) && !startButton.contains(e.target)) {
-        startMenu.classList.remove('active');
+      if (!e.target.closest('#start-menu') && !e.target.closest('#start-button')) {
+        document.getElementById('start-menu').classList.remove('active');
+      }
+      if (!e.target.closest('#context-menu')) {
+        document.getElementById('context-menu').classList.remove('active');
       }
     });
     
     // Context menu
     document.getElementById('desktop').addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      
-      const contextMenu = document.getElementById('context-menu');
-      contextMenu.style.left = `${e.clientX}px`;
-      contextMenu.style.top = `${e.clientY}px`;
-      contextMenu.classList.add('active');
+      const menu = document.getElementById('context-menu');
+      menu.style.left = e.clientX + 'px';
+      menu.style.top = e.clientY + 'px';
+      menu.classList.add('active');
     });
     
-    // Close context menu
-    document.addEventListener('click', () => {
-      document.getElementById('context-menu').classList.remove('active');
-    });
-    
-    // Search apps
+    // Search
     document.getElementById('start-menu-search').addEventListener('input', (e) => {
       const query = e.target.value.toLowerCase();
-      const apps = document.querySelectorAll('.start-menu-app');
-      
-      apps.forEach(app => {
-        const name = app.dataset.name.toLowerCase();
-        app.style.display = name.includes(query) ? 'flex' : 'none';
+      document.querySelectorAll('.start-menu-app').forEach(app => {
+        app.style.display = app.dataset.name.toLowerCase().includes(query) ? 'flex' : 'none';
       });
-    });
-    
-    // Power menu
-    window.showPowerMenu = function() {
-      const choice = confirm('Voulez-vous éteindre le système ?\n\nOK = Éteindre\nAnnuler = Mettre en veille');
-      
-      if (choice) {
-        const shutdown = new ShutdownSequence();
-        shutdown.start();
-      } else {
-        // Sleep mode (just minimize all windows)
-        if (window.BrowserOS) {
-          window.BrowserOS.windowManager.getAllWindows().forEach(w => {
-            window.BrowserOS.windowManager.minimize(w.id);
-          });
-        }
-      }
-    };
-    
-    // Save state before unload
-    window.addEventListener('beforeunload', async () => {
-      if (window.BrowserOS && window.BrowserOS.saveState) {
-        await window.BrowserOS.saveState();
-      }
     });
   </script>
 </body>
