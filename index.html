@@ -379,6 +379,60 @@
   <!-- SYSTEM MODULES -->
   <script type="module">
     // ═══════════════════════════════════════════════
+    // CONSOLE INTERCEPTOR (for logs.html)
+    // ═══════════════════════════════════════════════
+    
+    (function() {
+      const originalLog = console.log;
+      const originalError = console.error;
+      const originalWarn = console.warn;
+      
+      function sendToParent(level, args) {
+        if (window.parent !== window) {
+          try {
+            window.parent.postMessage({
+              type: 'console',
+              level,
+              message: args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' '),
+              data: args.length === 1 && typeof args[0] === 'object' ? args[0] : null
+            }, '*');
+          } catch (e) {
+            // Ignore if can't send
+          }
+        }
+      }
+      
+      console.log = function(...args) {
+        originalLog.apply(console, args);
+        sendToParent('INFO', args);
+      };
+      
+      console.error = function(...args) {
+        originalError.apply(console, args);
+        sendToParent('ERROR', args);
+      };
+      
+      console.warn = function(...args) {
+        originalWarn.apply(console, args);
+        sendToParent('WARN', args);
+      };
+      
+      // Catch unhandled errors
+      window.addEventListener('error', (e) => {
+        console.error('[UNHANDLED ERROR]', e.message, e.filename, e.lineno, e.colno);
+        sendToParent('ERROR', [e.message, { filename: e.filename, line: e.lineno, col: e.colno }]);
+      });
+      
+      window.addEventListener('unhandledrejection', (e) => {
+        console.error('[UNHANDLED PROMISE REJECTION]', e.reason);
+        sendToParent('ERROR', ['Promise rejection:', e.reason]);
+      });
+    })();
+    
+    console.log('[SYSTEM] NEXUS OS loading...');
+    console.log('[SYSTEM] Console interceptor active');
+
+    // ═══════════════════════════════════════════════
     // CPU MANAGER (Compute Engine)
     // ═══════════════════════════════════════════════
     class CPUManager {
@@ -1401,46 +1455,72 @@
     let gateway;
 
     async function bootSequence() {
-      const powerBtn = document.getElementById('power-button');
-      const bootLogs = document.getElementById('boot-logs');
-      const bootScreen = document.getElementById('boot-screen');
-      const desktop = document.getElementById('desktop');
+      console.log('[BOOT] Boot sequence START');
+      
+      try {
+        const powerBtn = document.getElementById('power-button');
+        const bootLogs = document.getElementById('boot-logs');
+        const bootScreen = document.getElementById('boot-screen');
+        const desktop = document.getElementById('desktop');
 
-      powerBtn.style.display = 'none';
-      bootLogs.classList.add('visible');
+        if (!powerBtn || !bootLogs || !bootScreen || !desktop) {
+          throw new Error('Required DOM elements not found');
+        }
 
-      const logs = [
-        '[BIOS] Initializing system...',
-        '[BIOS] Memory check: OK',
-        '[BIOS] Boot device: Browser',
-        '[KERNEL] Loading NEXUS OS Gateway...',
-        '[KERNEL] Initializing Window Manager...',
-        '[KERNEL] Initializing Storage Manager...',
-        '[KERNEL] Initializing IPC Router...',
-        '[KERNEL] System modules loaded',
-        '[INIT] Starting desktop environment...',
-        '[INIT] Loading applications registry...',
-        '[INIT] System ready'
-      ];
+        console.log('[BOOT] All DOM elements found');
 
-      for (const log of logs) {
-        await new Promise(resolve => setTimeout(resolve, 150));
-        const logEl = document.createElement('div');
-        logEl.className = 'boot-log';
-        logEl.textContent = log;
-        bootLogs.appendChild(logEl);
-        bootLogs.scrollTop = bootLogs.scrollHeight;
+        powerBtn.style.display = 'none';
+        bootLogs.classList.add('visible');
+
+        const logs = [
+          '[BIOS] Initializing system...',
+          '[BIOS] Memory check: OK',
+          '[BIOS] Boot device: Browser',
+          '[KERNEL] Loading NEXUS OS Gateway...',
+          '[KERNEL] Initializing CPU Manager (4 cores)...',
+          '[KERNEL] Initializing Window Manager...',
+          '[KERNEL] Initializing Storage Manager...',
+          '[KERNEL] Initializing IPC Router...',
+          '[KERNEL] System modules loaded',
+          '[INIT] Starting desktop environment...',
+          '[INIT] Loading applications registry...',
+          '[INIT] System ready'
+        ];
+
+        for (const log of logs) {
+          await new Promise(resolve => setTimeout(resolve, 150));
+          const logEl = document.createElement('div');
+          logEl.className = 'boot-log';
+          logEl.textContent = log;
+          bootLogs.appendChild(logEl);
+          bootLogs.scrollTop = bootLogs.scrollHeight;
+          console.log('[BOOT]', log);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        console.log('[BOOT] Creating OS Gateway...');
+        gateway = new OSGateway();
+        
+        console.log('[BOOT] Calling gateway.boot()...');
+        await gateway.boot();
+        
+        console.log('[BOOT] Gateway booted successfully');
+
+        bootScreen.classList.add('hidden');
+        desktop.classList.add('active');
+
+        console.log('[BOOT] Desktop shown, initializing desktop...');
+        initDesktop();
+        
+        console.log('[BOOT] Boot sequence COMPLETE');
+
+      } catch (error) {
+        console.error('[BOOT] FATAL ERROR:', error);
+        console.error('[BOOT] Stack:', error.stack);
+        alert('Boot failed: ' + error.message + '\n\nCheck console for details');
+        throw error;
       }
-
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      gateway = new OSGateway();
-      await gateway.boot();
-
-      bootScreen.classList.add('hidden');
-      desktop.classList.add('active');
-
-      initDesktop();
     }
 
     function initDesktop() {
@@ -1513,12 +1593,45 @@
     // ENTRY POINT
     // ═══════════════════════════════════════════════
 
-    document.getElementById('power-button').addEventListener('click', () => {
-      console.log('[DEBUG] Power button clicked');
-      bootSequence().catch(error => {
-        console.error('[DEBUG] Boot failed:', error);
+    // ═══════════════════════════════════════════════
+    // POWER BUTTON - CRITICAL FIX
+    // ═══════════════════════════════════════════════
+    
+    function initPowerButton() {
+      const powerBtn = document.getElementById('power-button');
+      
+      if (!powerBtn) {
+        console.error('[CRITICAL] Power button not found in DOM!');
+        alert('CRITICAL ERROR: Power button not found');
+        return;
+      }
+      
+      console.log('[INIT] Power button found, attaching listener...');
+      
+      powerBtn.addEventListener('click', () => {
+        console.log('[DEBUG] Power button clicked');
+        console.log('[DEBUG] Starting boot sequence...');
+        
+        try {
+          bootSequence().catch(error => {
+            console.error('[DEBUG] Boot failed:', error);
+            alert('Boot failed: ' + error.message);
+          });
+        } catch (error) {
+          console.error('[DEBUG] Boot error (sync):', error);
+          alert('Boot error: ' + error.message);
+        }
       });
-    });
+      
+      console.log('[INIT] Power button listener attached successfully');
+    }
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initPowerButton);
+    } else {
+      initPowerButton();
+    }
 
     // Register Service Worker
     if ('serviceWorker' in navigator) {
