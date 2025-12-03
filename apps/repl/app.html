@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JavaScript REPL</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Courier New', Monaco, monospace;
+      background: #1a1a24;
+      color: #e8e8f0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .toolbar {
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 12px 16px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .toolbar-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: none;
+      border-radius: 6px;
+      color: #e8e8f0;
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      font-family: -apple-system, sans-serif;
+    }
+
+    .toolbar-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .toolbar-btn.primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.1);
+      margin: 0 8px;
+    }
+
+    input[type="text"] {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #e8e8f0;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+      flex: 1;
+    }
+
+    .container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .editor-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .panel-header {
+      background: rgba(0, 0, 0, 0.2);
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      font-family: -apple-system, sans-serif;
+    }
+
+    .editor {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.3);
+      border: none;
+      outline: none;
+      color: #e8e8f0;
+      padding: 16px;
+      font-size: 14px;
+      line-height: 1.6;
+      resize: none;
+      tab-size: 2;
+    }
+
+    .output-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .output {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .output-entry {
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .output-entry:last-child {
+      border-bottom: none;
+    }
+
+    .output-prompt {
+      color: #667eea;
+      font-weight: bold;
+    }
+
+    .output-result {
+      color: #70d6a3;
+      padding-left: 20px;
+      margin-top: 4px;
+    }
+
+    .output-error {
+      color: #ff5555;
+      padding-left: 20px;
+      margin-top: 4px;
+    }
+
+    .output-log {
+      color: #9090a8;
+      padding-left: 20px;
+      margin-top: 4px;
+    }
+
+    .libs-panel {
+      width: 300px;
+      background: rgba(0, 0, 0, 0.2);
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .lib-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 13px;
+      font-family: -apple-system, sans-serif;
+    }
+
+    .lib-name {
+      color: #667eea;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .lib-desc {
+      color: #9090a8;
+      font-size: 11px;
+    }
+
+    .lib-status {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      margin-top: 4px;
+      background: rgba(112, 214, 163, 0.2);
+      color: #70d6a3;
+    }
+
+    .templates {
+      padding: 16px;
+    }
+
+    .template-btn {
+      display: block;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      border: none;
+      border-radius: 6px;
+      color: #e8e8f0;
+      padding: 10px;
+      margin-bottom: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      text-align: left;
+      font-family: -apple-system, sans-serif;
+      transition: background 0.2s ease;
+    }
+
+    .template-btn:hover {
+      background: rgba(102, 126, 234, 0.2);
+    }
+
+    .notification {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(102, 126, 234, 0.95);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-family: -apple-system, sans-serif;
+      font-size: 13px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s ease;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .notification.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="toolbar-btn primary" id="run-btn">▶ Exécuter (Ctrl+Enter)</button>
+    <button class="toolbar-btn" id="clear-btn">Effacer</button>
+    <button class="toolbar-btn" id="clear-output-btn">Effacer sortie</button>
+    <div class="toolbar-divider"></div>
+    <input type="text" id="cdn-input" placeholder="CDN URL (ex: https://cdn.jsdelivr.net/npm/lodash)">
+    <button class="toolbar-btn" id="load-cdn-btn">Charger CDN</button>
+  </div>
+
+  <div class="container">
+    <div class="editor-panel">
+      <div class="panel-header">Éditeur JavaScript</div>
+      <textarea class="editor" id="editor" placeholder="// Écrivez votre code JavaScript ici
+// Exemple :
+console.log('Hello NEXUS OS!');
+
+// Toutes les APIs Web sont disponibles
+fetch('https://api.github.com/users/github')
+  .then(r => r.json())
+  .then(data => console.log(data));
+
+// Variables disponibles :
+// - window, document
+// - fetch, Promise
+// - Toutes les APIs standard JS"></textarea>
+    </div>
+
+    <div class="output-panel">
+      <div class="panel-header">Sortie Console</div>
+      <div class="output" id="output">
+        <div class="output-entry">
+          <div class="output-log">NEXUS REPL v1.0.0 - Prêt à exécuter du JavaScript</div>
+          <div class="output-log">Astuce : Utilisez Ctrl+Enter pour exécuter rapidement</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="libs-panel">
+      <div class="panel-header">Bibliothèques & Templates</div>
+      
+      <div class="templates">
+        <button class="template-btn" data-template="hello">Hello World</button>
+        <button class="template-btn" data-template="fetch">Fetch API</button>
+        <button class="template-btn" data-template="ai-openai">AI - OpenAI</button>
+        <button class="template-btn" data-template="ai-anthropic">AI - Claude (Anthropic)</button>
+        <button class="template-btn" data-template="lodash">Lodash Example</button>
+        <button class="template-btn" data-template="chart">Chart.js Example</button>
+      </div>
+
+      <div class="panel-header" style="margin-top: 20px;">CDN Chargés</div>
+      <div id="loaded-libs"></div>
+    </div>
+  </div>
+
+  <div class="notification" id="notification"></div>
+
+  <script>
+    class JavaScriptREPL {
+      constructor() {
+        this.pid = null;
+        this.editor = document.getElementById('editor');
+        this.output = document.getElementById('output');
+        this.loadedLibs = new Set();
+        this.executionCount = 0;
+
+        this.templates = {
+          'hello': `// Hello World Simple
+console.log('Hello NEXUS OS!');
+console.log('Date:', new Date().toLocaleString());`,
+
+          'fetch': `// Exemple Fetch API
+fetch('https://api.github.com/repos/microsoft/vscode')
+  .then(response => response.json())
+  .then(data => {
+    console.log('Repo:', data.name);
+    console.log('Stars:', data.stargazers_count);
+    console.log('Description:', data.description);
+  })
+  .catch(error => console.error('Erreur:', error));`,
+
+          'ai-openai': `// OpenAI API Example
+const OPENAI_API_KEY = 'your-api-key-here';
+
+async function askOpenAI(question) {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': \`Bearer \${OPENAI_API_KEY}\`
+    },
+    body: JSON.stringify({
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: question }]
+    })
+  });
+  
+  const data = await response.json();
+  console.log('AI Response:', data.choices[0].message.content);
+}
+
+// askOpenAI('Explique NEXUS OS en une phrase');`,
+
+          'ai-anthropic': `// Claude API Example (Anthropic)
+const ANTHROPIC_API_KEY = 'your-api-key-here';
+
+async function askClaude(question) {
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': ANTHROPIC_API_KEY,
+      'anthropic-version': '2023-06-01'
+    },
+    body: JSON.stringify({
+      model: 'claude-3-sonnet-20240229',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: question }]
+    })
+  });
+  
+  const data = await response.json();
+  console.log('Claude:', data.content[0].text);
+}
+
+// askClaude('Qu'est-ce que NEXUS OS ?');`,
+
+          'lodash': `// Lodash Example
+// D'abord charger : https://cdn.jsdelivr.net/npm/lodash
+
+const array = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+console.log('Chunk:', _.chunk(array, 3));
+console.log('Sum:', _.sum(array));
+console.log('Mean:', _.mean(array));
+console.log('Random:', _.sample(array));`,
+
+          'chart': `// Chart.js Example
+// D'abord charger : https://cdn.jsdelivr.net/npm/chart.js
+
+// Créer canvas
+const canvas = document.createElement('canvas');
+canvas.width = 400;
+canvas.height = 200;
+document.body.appendChild(canvas);
+
+// Créer graphique
+new Chart(canvas, {
+  type: 'line',
+  data: {
+    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+    datasets: [{
+      label: 'Données',
+      data: [12, 19, 3, 5, 2],
+      borderColor: 'rgb(102, 126, 234)',
+      tension: 0.1
+    }]
+  }
+});
+
+console.log('Graphique créé !');`
+        };
+
+        this.init();
+      }
+
+      init() {
+        this.setupEventListeners();
+        this.setupConsoleIntercept();
+        this.notifyParentReady();
+
+        window.addEventListener('message', (e) => {
+          if (e.data.type === 'kernel:config') {
+            this.pid = e.data.pid;
+            console.log('[REPL] Config reçue, PID:', this.pid);
+          }
+        });
+      }
+
+      setupEventListeners() {
+        document.getElementById('run-btn').addEventListener('click', () => this.executeCode());
+        document.getElementById('clear-btn').addEventListener('click', () => this.clearEditor());
+        document.getElementById('clear-output-btn').addEventListener('click', () => this.clearOutput());
+        document.getElementById('load-cdn-btn').addEventListener('click', () => this.loadCDN());
+
+        // Ctrl+Enter pour exécuter
+        this.editor.addEventListener('keydown', (e) => {
+          if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            this.executeCode();
+          }
+        });
+
+        // Templates
+        document.querySelectorAll('.template-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const template = this.templates[btn.dataset.template];
+            this.editor.value = template;
+            this.showNotification('Template chargé');
+          });
+        });
+
+        // Tab support
+        this.editor.addEventListener('keydown', (e) => {
+          if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = this.editor.selectionStart;
+            const end = this.editor.selectionEnd;
+            const value = this.editor.value;
+            this.editor.value = value.substring(0, start) + '  ' + value.substring(end);
+            this.editor.selectionStart = this.editor.selectionEnd = start + 2;
+          }
+        });
+      }
+
+      setupConsoleIntercept() {
+        const originalLog = console.log;
+        const originalError = console.error;
+        const originalWarn = console.warn;
+
+        console.log = (...args) => {
+          originalLog.apply(console, args);
+          this.addOutput('log', args);
+        };
+
+        console.error = (...args) => {
+          originalError.apply(console, args);
+          this.addOutput('error', args);
+        };
+
+        console.warn = (...args) => {
+          originalWarn.apply(console, args);
+          this.addOutput('log', args);
+        };
+      }
+
+      async executeCode() {
+        const code = this.editor.value.trim();
+        if (!code) return;
+
+        this.executionCount++;
+
+        this.addOutput('prompt', [`[${this.executionCount}] Exécution...`]);
+
+        try {
+          // Exécuter le code dans un contexte isolé
+          const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+          const func = new AsyncFunction(code);
+          const result = await func();
+
+          if (result !== undefined) {
+            this.addOutput('result', [result]);
+          }
+
+          this.showNotification('Code exécuté avec succès');
+        } catch (error) {
+          this.addOutput('error', [error.toString()]);
+          this.showNotification('Erreur d\'exécution');
+        }
+      }
+
+      addOutput(type, args) {
+        const entry = document.createElement('div');
+        entry.className = 'output-entry';
+
+        const content = args.map(arg => {
+          if (typeof arg === 'object') {
+            try {
+              return JSON.stringify(arg, null, 2);
+            } catch (e) {
+              return String(arg);
+            }
+          }
+          return String(arg);
+        }).join(' ');
+
+        if (type === 'prompt') {
+          entry.innerHTML = `<div class="output-prompt">${content}</div>`;
+        } else if (type === 'result') {
+          entry.innerHTML = `<div class="output-result">→ ${content}</div>`;
+        } else if (type === 'error') {
+          entry.innerHTML = `<div class="output-error">✖ ${content}</div>`;
+        } else {
+          entry.innerHTML = `<div class="output-log">${content}</div>`;
+        }
+
+        this.output.appendChild(entry);
+        this.output.scrollTop = this.output.scrollHeight;
+      }
+
+      async loadCDN() {
+        const url = document.getElementById('cdn-input').value.trim();
+        if (!url) {
+          this.showNotification('Entrez une URL CDN');
+          return;
+        }
+
+        if (this.loadedLibs.has(url)) {
+          this.showNotification('Bibliothèque déjà chargée');
+          return;
+        }
+
+        try {
+          this.addOutput('log', [`Chargement de ${url}...`]);
+
+          const script = document.createElement('script');
+          script.src = url;
+          
+          await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+
+          this.loadedLibs.add(url);
+          this.updateLoadedLibs();
+          this.addOutput('result', [`✓ Bibliothèque chargée : ${url}`]);
+          this.showNotification('Bibliothèque chargée avec succès');
+
+          document.getElementById('cdn-input').value = '';
+        } catch (error) {
+          this.addOutput('error', [`Erreur de chargement : ${error.message}`]);
+          this.showNotification('Échec du chargement');
+        }
+      }
+
+      updateLoadedLibs() {
+        const container = document.getElementById('loaded-libs');
+        container.innerHTML = Array.from(this.loadedLibs).map(url => {
+          const name = url.split('/').pop().split('?')[0];
+          return `
+            <div class="lib-item">
+              <div class="lib-name">${name}</div>
+              <div class="lib-desc">${url.substring(0, 40)}...</div>
+              <div class="lib-status">Chargé</div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      clearEditor() {
+        if (confirm('Effacer l\'éditeur ?')) {
+          this.editor.value = '';
+          this.showNotification('Éditeur effacé');
+        }
+      }
+
+      clearOutput() {
+        this.output.innerHTML = `
+          <div class="output-entry">
+            <div class="output-log">Console effacée</div>
+          </div>
+        `;
+        this.showNotification('Sortie effacée');
+      }
+
+      showNotification(message) {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.classList.add('show');
+
+        setTimeout(() => {
+          notification.classList.remove('show');
+        }, 2000);
+      }
+
+      notifyParentReady() {
+        console.log('[REPL] Notification au parent : app prête');
+        window.parent.postMessage({
+          type: 'app:ready',
+          pid: this.pid
+        }, '*');
+      }
+    }
+
+    const repl = new JavaScriptREPL();
+    console.log('[REPL] App initialisée');
+  </script>
+</body>
+</html>
