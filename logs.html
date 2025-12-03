@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEXUS OS - System Diagnostics</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Courier New', Monaco, monospace;
+      background: #0a0a0f;
+      color: #70d6a3;
+      padding: 20px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    h1 {
+      color: #667eea;
+      margin-bottom: 20px;
+      font-size: 24px;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .section {
+      background: rgba(26, 26, 36, 0.8);
+      border: 1px solid rgba(102, 126, 234, 0.3);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      color: #667eea;
+      font-size: 18px;
+      margin-bottom: 15px;
+      border-bottom: 1px solid rgba(102, 126, 234, 0.3);
+      padding-bottom: 10px;
+    }
+
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .test-card {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      padding: 15px;
+    }
+
+    .test-card.pass {
+      border-left: 4px solid #70d6a3;
+    }
+
+    .test-card.fail {
+      border-left: 4px solid #ff5555;
+    }
+
+    .test-card.running {
+      border-left: 4px solid #ffb86c;
+    }
+
+    .test-name {
+      font-weight: bold;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .test-status {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .test-status.pass { color: #70d6a3; }
+    .test-status.fail { color: #ff5555; }
+    .test-status.running { color: #ffb86c; }
+
+    .log-container {
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      padding: 15px;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .log-entry {
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .log-timestamp {
+      color: #9090a8;
+      font-size: 11px;
+    }
+
+    .log-level {
+      font-weight: bold;
+      margin: 0 8px;
+    }
+
+    .log-level.INFO { color: #70d6a3; }
+    .log-level.WARN { color: #ffb86c; }
+    .log-level.ERROR { color: #ff5555; }
+    .log-level.DEBUG { color: #6b8cff; }
+
+    .log-message {
+      color: #e8e8f0;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+    }
+
+    .stat-card {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(102, 126, 234, 0.3);
+      border-radius: 6px;
+      padding: 15px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: bold;
+      color: #667eea;
+      margin-bottom: 8px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #9090a8;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+      font-family: inherit;
+    }
+
+    button:hover {
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .error-box {
+      background: rgba(255, 85, 85, 0.1);
+      border: 1px solid #ff5555;
+      border-radius: 6px;
+      padding: 15px;
+      margin-top: 15px;
+    }
+
+    .error-title {
+      color: #ff5555;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .code-block {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 10px;
+      overflow-x: auto;
+    }
+
+    .iframe-container {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .iframe-container.visible {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .iframe-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .iframe-wrapper {
+      flex: 1;
+      border: 2px solid #667eea;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>NEXUS OS - System Diagnostics & Logs</h1>
+
+    <div class="section">
+      <div class="section-title">Quick Actions</div>
+      <button onclick="runAllTests()">Run All Tests</button>
+      <button onclick="clearLogs()">Clear Logs</button>
+      <button onclick="exportLogs()">Export Logs</button>
+      <button onclick="openSystemInIframe()">Open NEXUS OS (Debug)</button>
+      <button onclick="location.reload()">Refresh Page</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">System Statistics</div>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="stat-tests">0</div>
+          <div class="stat-label">Tests Run</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-pass">0</div>
+          <div class="stat-label">Tests Passed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-fail">0</div>
+          <div class="stat-label">Tests Failed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="stat-logs">0</div>
+          <div class="stat-label">Log Entries</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Automated Tests</div>
+      <div class="test-grid" id="test-grid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Real-Time Logs</div>
+      <div class="log-container" id="log-container"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Error Details</div>
+      <div id="error-container">
+        <p style="color: #9090a8; text-align: center;">No errors detected</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="iframe-container" id="iframe-container">
+    <div class="iframe-header">
+      <h2 style="color: #667eea;">NEXUS OS - Debug Mode</h2>
+      <button onclick="closeIframe()">Close</button>
+    </div>
+    <div class="iframe-wrapper">
+      <iframe id="system-iframe" src=""></iframe>
+    </div>
+  </div>
+
+  <script>
+    // ═══════════════════════════════════════════════
+    // DIAGNOSTIC SYSTEM
+    // ═══════════════════════════════════════════════
+
+    const tests = [
+      { id: 'dom-elements', name: 'DOM Elements', test: testDOMElements },
+      { id: 'power-button', name: 'Power Button', test: testPowerButton },
+      { id: 'boot-screen', name: 'Boot Screen', test: testBootScreen },
+      { id: 'desktop', name: 'Desktop', test: testDesktop },
+      { id: 'taskbar', name: 'Taskbar', test: testTaskbar },
+      { id: 'start-menu', name: 'Start Menu', test: testStartMenu },
+      { id: 'ldss-sdk', name: 'LDSS SDK', test: testLDSS },
+      { id: 'service-worker', name: 'Service Worker', test: testServiceWorker },
+      { id: 'manifest', name: 'Manifest', test: testManifest },
+      { id: 'apps', name: 'App Files', test: testAppFiles }
+    ];
+
+    let logs = [];
+    let stats = { tests: 0, pass: 0, fail: 0 };
+
+    function log(level, message, data = null) {
+      const entry = {
+        timestamp: new Date().toISOString(),
+        level,
+        message,
+        data
+      };
+      
+      logs.push(entry);
+      updateLogDisplay();
+      updateStats();
+    }
+
+    function updateLogDisplay() {
+      const container = document.getElementById('log-container');
+      container.innerHTML = logs.slice(-100).reverse().map(entry => `
+        <div class="log-entry">
+          <span class="log-timestamp">${entry.timestamp}</span>
+          <span class="log-level ${entry.level}">[${entry.level}]</span>
+          <span class="log-message">${entry.message}</span>
+          ${entry.data ? `<div class="code-block">${JSON.stringify(entry.data, null, 2)}</div>` : ''}
+        </div>
+      `).join('');
+      
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function updateStats() {
+      document.getElementById('stat-tests').textContent = stats.tests;
+      document.getElementById('stat-pass').textContent = stats.pass;
+      document.getElementById('stat-fail').textContent = stats.fail;
+      document.getElementById('stat-logs').textContent = logs.length;
+    }
+
+    function updateTestCard(testId, status, message) {
+      const card = document.getElementById(`test-${testId}`);
+      if (!card) return;
+
+      card.className = `test-card ${status}`;
+      card.querySelector('.test-status').textContent = message;
+      card.querySelector('.test-status').className = `test-status ${status}`;
+    }
+
+    async function runTest(test) {
+      log('INFO', `Running test: ${test.name}`);
+      updateTestCard(test.id, 'running', 'Running...');
+      
+      try {
+        await test.test();
+        stats.pass++;
+        updateTestCard(test.id, 'pass', 'PASS');
+        log('INFO', `Test passed: ${test.name}`);
+      } catch (error) {
+        stats.fail++;
+        updateTestCard(test.id, 'fail', `FAIL: ${error.message}`);
+        log('ERROR', `Test failed: ${test.name}`, { error: error.message, stack: error.stack });
+        showError(test.name, error);
+      }
+      
+      stats.tests++;
+      updateStats();
+    }
+
+    async function runAllTests() {
+      log('INFO', 'Starting automated test suite...');
+      stats = { tests: 0, pass: 0, fail: 0 };
+      
+      for (const test of tests) {
+        await runTest(test);
+        await new Promise(r => setTimeout(r, 500));
+      }
+      
+      log('INFO', `Test suite complete: ${stats.pass}/${stats.tests} passed`);
+    }
+
+    // ═══════════════════════════════════════════════
+    // TESTS
+    // ═══════════════════════════════════════════════
+
+    async function testDOMElements() {
+      const response = await fetch('/index.html');
+      const html = await response.text();
+      
+      const requiredIds = [
+        'power-button',
+        'boot-screen',
+        'boot-logs',
+        'desktop',
+        'taskbar',
+        'start-menu',
+        'windows-container'
+      ];
+      
+      for (const id of requiredIds) {
+        if (!html.includes(`id="${id}"`)) {
+          throw new Error(`Missing DOM element: ${id}`);
+        }
+      }
+    }
+
+    async function testPowerButton() {
+      const response = await fetch('/index.html');
+      const html = await response.text();
+      
+      if (!html.includes('power-button')) {
+        throw new Error('Power button not found in HTML');
+      }
+      
+      if (!html.includes('addEventListener') && !html.includes('onclick')) {
+        throw new Error('No event listener found for power button');
+      }
+    }
+
+    async function testBootScreen() {
+      const response = await fetch('/index.html');
+      const html = await response.text();
+      
+      if (!html.includes('boot-screen')) {
+        throw new Error('Boot screen not found');
+      }
+      
+      if (!html.includes('bootSequence')) {
+        throw new Error('bootSequence function not found');
+      }
+    }
+
+    async function testDesktop() {
+      const response = await fetch('/index.html');
+      const html = await response.text();
+      
+      if (!html.includes('id="desktop"')) {
+        throw new Error('Desktop element not found');
+      }
+    }
+
+    async function testTaskbar() {
+      const response = await fetch('/index.html');
+      const html = await response.text();
+      
+      if (!html.includes('id="taskbar"')) {
+        throw new Error('Taskbar not found');
+      }
+    }
+
+    async function testStartMenu() {
+      const response = await fetch('/index.html');
+      const html = await response.text();
+      
+      if (!html.includes('id="start-menu"')) {
+        throw new Error('Start menu not found');
+      }
+      
+      if (!html.includes('AVAILABLE_APPS')) {
+        throw new Error('AVAILABLE_APPS not found');
+      }
+    }
+
+    async function testLDSS() {
+      const response = await fetch('/index.html');
+      const html = await response.text();
+      
+      if (!html.includes('ldss-client.js')) {
+        throw new Error('LDSS SDK not included');
+      }
+    }
+
+    async function testServiceWorker() {
+      try {
+        const response = await fetch('/sw.js');
+        if (!response.ok) throw new Error('sw.js not found');
+      } catch (error) {
+        throw new Error('Service Worker file missing');
+      }
+    }
+
+    async function testManifest() {
+      try {
+        const response = await fetch('/manifest.json');
+        if (!response.ok) throw new Error('manifest.json not found');
+        
+        const manifest = await response.json();
+        if (!manifest.name) throw new Error('Manifest missing name');
+      } catch (error) {
+        throw new Error('Manifest invalid or missing');
+      }
+    }
+
+    async function testAppFiles() {
+      const apps = ['calculator', 'terminal', 'notepad', 'task-manager', 'file-manager', 'code-editor'];
+      
+      for (const app of apps) {
+        try {
+          const response = await fetch(`/apps/${app}/app.html`);
+          if (!response.ok) throw new Error(`${app} not found`);
+        } catch (error) {
+          throw new Error(`App file missing: ${app}`);
+        }
+      }
+    }
+
+    // ═══════════════════════════════════════════════
+    // UI FUNCTIONS
+    // ═══════════════════════════════════════════════
+
+    function initTestGrid() {
+      const grid = document.getElementById('test-grid');
+      grid.innerHTML = tests.map(test => `
+        <div class="test-card" id="test-${test.id}">
+          <div class="test-name">${test.name}</div>
+          <div class="test-status">Not run</div>
+        </div>
+      `).join('');
+    }
+
+    function showError(testName, error) {
+      const container = document.getElementById('error-container');
+      
+      const errorBox = document.createElement('div');
+      errorBox.className = 'error-box';
+      errorBox.innerHTML = `
+        <div class="error-title">Error in ${testName}</div>
+        <div>${error.message}</div>
+        ${error.stack ? `<div class="code-block">${error.stack}</div>` : ''}
+      `;
+      
+      container.innerHTML = '';
+      container.appendChild(errorBox);
+    }
+
+    function clearLogs() {
+      logs = [];
+      updateLogDisplay();
+      document.getElementById('error-container').innerHTML = '<p style="color: #9090a8; text-align: center;">No errors detected</p>';
+      log('INFO', 'Logs cleared');
+    }
+
+    function exportLogs() {
+      const dataStr = JSON.stringify(logs, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nexus-logs-${Date.now()}.json`;
+      a.click();
+      
+      log('INFO', 'Logs exported');
+    }
+
+    function openSystemInIframe() {
+      const container = document.getElementById('iframe-container');
+      const iframe = document.getElementById('system-iframe');
+      
+      iframe.src = '/index.html';
+      container.classList.add('visible');
+      
+      log('INFO', 'Opening NEXUS OS in debug mode');
+    }
+
+    function closeIframe() {
+      document.getElementById('iframe-container').classList.remove('visible');
+      document.getElementById('system-iframe').src = '';
+    }
+
+    // ═══════════════════════════════════════════════
+    // INIT
+    // ═══════════════════════════════════════════════
+
+    window.addEventListener('load', () => {
+      log('INFO', 'Diagnostics system initialized');
+      initTestGrid();
+      
+      // Auto-run tests after 1 second
+      setTimeout(() => {
+        log('INFO', 'Auto-running test suite...');
+        runAllTests();
+      }, 1000);
+    });
+
+    // Intercept console logs from iframe
+    window.addEventListener('message', (e) => {
+      if (e.data && e.data.type === 'console') {
+        log(e.data.level || 'INFO', e.data.message, e.data.data);
+      }
+    });
+  </script>
+</body>
+</html>
