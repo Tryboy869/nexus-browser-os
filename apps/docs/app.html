@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation NEXUS OS</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a24;
+      color: #e8e8f0;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 280px;
+      background: rgba(0, 0, 0, 0.2);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .logo {
+      font-size: 24px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 30px;
+    }
+
+    .search-box {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: #e8e8f0;
+      font-size: 13px;
+      width: 100%;
+      margin-bottom: 20px;
+    }
+
+    .nav-section {
+      margin-bottom: 25px;
+    }
+
+    .nav-title {
+      font-size: 11px;
+      color: #9090a8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .nav-item {
+      padding: 8px 12px;
+      margin-bottom: 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .nav-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .nav-item.active {
+      background: rgba(102, 126, 234, 0.2);
+      color: #667eea;
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 40px 60px;
+      max-width: 900px;
+    }
+
+    .content::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .content::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .content::-webkit-scrollbar-thumb {
+      background: rgba(102, 126, 234, 0.3);
+      border-radius: 4px;
+    }
+
+    h1 {
+      font-size: 36px;
+      margin-bottom: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    h2 {
+      font-size: 28px;
+      margin-top: 40px;
+      margin-bottom: 16px;
+      color: #667eea;
+    }
+
+    h3 {
+      font-size: 22px;
+      margin-top: 30px;
+      margin-bottom: 12px;
+      color: #e8e8f0;
+    }
+
+    p {
+      line-height: 1.7;
+      margin-bottom: 16px;
+      color: #c8c8d8;
+    }
+
+    code {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      color: #70d6a3;
+    }
+
+    pre {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 20px 0;
+      border-left: 3px solid #667eea;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+      color: #e8e8f0;
+    }
+
+    ul, ol {
+      margin-left: 20px;
+      margin-bottom: 16px;
+      line-height: 1.7;
+    }
+
+    li {
+      margin-bottom: 8px;
+      color: #c8c8d8;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin: 30px 0;
+    }
+
+    .feature-card {
+      background: rgba(102, 126, 234, 0.1);
+      border: 1px solid rgba(102, 126, 234, 0.2);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .feature-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #667eea;
+    }
+
+    .feature-desc {
+      font-size: 14px;
+      color: #c8c8d8;
+      line-height: 1.6;
+    }
+
+    .tip {
+      background: rgba(112, 214, 163, 0.1);
+      border-left: 3px solid #70d6a3;
+      padding: 16px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+
+    .tip-title {
+      font-weight: 600;
+      color: #70d6a3;
+      margin-bottom: 8px;
+    }
+
+    .warning {
+      background: rgba(255, 184, 108, 0.1);
+      border-left: 3px solid #ffb86c;
+      padding: 16px;
+      border-radius: 6px;
+      margin: 20px 0;
+    }
+
+    .warning-title {
+      font-weight: 600;
+      color: #ffb86c;
+      margin-bottom: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    th {
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+      font-weight: 600;
+    }
+
+    .kbd {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      color: #e8e8f0;
+      display: inline-block;
+      margin: 0 2px;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">NEXUS OS</div>
+    <input type="text" class="search-box" placeholder="Rechercher..." id="search">
+    
+    <div class="nav-section">
+      <div class="nav-title">Démarrage</div>
+      <div class="nav-item active" data-page="intro">Introduction</div>
+      <div class="nav-item" data-page="quickstart">Guide rapide</div>
+      <div class="nav-item" data-page="features">Fonctionnalités</div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-title">Applications</div>
+      <div class="nav-item" data-page="calculator">Calculatrice</div>
+      <div class="nav-item" data-page="terminal">Terminal</div>
+      <div class="nav-item" data-page="notepad">Bloc-notes</div>
+      <div class="nav-item" data-page="filemanager">Gestionnaire de fichiers</div>
+      <div class="nav-item" data-page="codeeditor">Éditeur de code</div>
+      <div class="nav-item" data-page="repl">JavaScript REPL</div>
+      <div class="nav-item" data-page="taskmanager">Gestionnaire de tâches</div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-title">Système</div>
+      <div class="nav-item" data-page="architecture">Architecture</div>
+      <div class="nav-item" data-page="ipc">Communication IPC</div>
+      <div class="nav-item" data-page="storage">Stockage</div>
+      <div class="nav-item" data-page="cpu">CPU Manager</div>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-title">Développement</div>
+      <div class="nav-item" data-page="createapp">Créer une application</div>
+      <div class="nav-item" data-page="api">Référence API</div>
+      <div class="nav-item" data-page="contributing">Contribuer</div>
+    </div>
+  </div>
+
+  <div class="content" id="content"></div>
+
+  <script>
+    class Documentation {
+      constructor() {
+        this.pid = null;
+        this.currentPage = 'intro';
+
+        this.pages = {
+          intro: this.renderIntro.bind(this),
+          quickstart: this.renderQuickstart.bind(this),
+          features: this.renderFeatures.bind(this),
+          calculator: this.renderCalculator.bind(this),
+          terminal: this.renderTerminal.bind(this),
+          notepad: this.renderNotepad.bind(this),
+          filemanager: this.renderFileManager.bind(this),
+          codeeditor: this.renderCodeEditor.bind(this),
+          repl: this.renderREPL.bind(this),
+          taskmanager: this.renderTaskManager.bind(this),
+          architecture: this.renderArchitecture.bind(this),
+          ipc: this.renderIPC.bind(this),
+          storage: this.renderStorage.bind(this),
+          cpu: this.renderCPU.bind(this),
+          createapp: this.renderCreateApp.bind(this),
+          api: this.renderAPI.bind(this),
+          contributing: this.renderContributing.bind(this)
+        };
+
+        this.init();
+      }
+
+      init() {
+        this.renderPage(this.currentPage);
+        this.setupEventListeners();
+        this.notifyParentReady();
+
+        window.addEventListener('message', (e) => {
+          if (e.data.type === 'kernel:config') {
+            this.pid = e.data.pid;
+          }
+        });
+      }
+
+      setupEventListeners() {
+        document.querySelectorAll('.nav-item').forEach(item => {
+          item.addEventListener('click', () => {
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            this.currentPage = item.dataset.page;
+            this.renderPage(this.currentPage);
+          });
+        });
+
+        const search = document.getElementById('search');
+        search.addEventListener('input', (e) => {
+          const query = e.target.value.toLowerCase();
+          document.querySelectorAll('.nav-item').forEach(item => {
+            const text = item.textContent.toLowerCase();
+            item.style.display = text.includes(query) ? 'block' : 'none';
+          });
+        });
+      }
+
+      renderPage(page) {
+        const content = document.getElementById('content');
+        if (this.pages[page]) {
+          content.innerHTML = this.pages[page]();
+          content.scrollTop = 0;
+        }
+      }
+
+      renderIntro() {
+        return `
+          <h1>Bienvenue dans NEXUS OS</h1>
+          <p>NEXUS OS est un système d'exploitation complet qui fonctionne entièrement dans votre navigateur. Aucune installation requise, accessible sur n'importe quel appareil.</p>
+
+          <div style="background: rgba(102, 126, 234, 0.1); padding: 16px; border-radius: 8px; margin: 20px 0; text-align: center;">
+            <strong>Powered by Nexus Studio</strong><br>
+            <span style="font-size: 13px; color: #9090a8;">Développé par Daouda Abdoul Anzize</span>
+          </div>
+
+          <h2>Pourquoi NEXUS OS ?</h2>
+          <div class="feature-grid">
+            <div class="feature-card">
+              <div class="feature-title">100% Browser</div>
+              <div class="feature-desc">Fonctionne entièrement dans le navigateur, sans backend ni serveur</div>
+            </div>
+            <div class="feature-card">
+              <div class="feature-title">Hors ligne</div>
+              <div class="feature-desc">Grâce aux Service Workers, fonctionne même sans connexion</div>
+            </div>
+            <div class="feature-card">
+              <div class="feature-title">Puissant</div>
+              <div class="feature-desc">4 cœurs CPU via WebWorkers pour calculs parallèles</div>
+            </div>
+            <div class="feature-card">
+              <div class="feature-title">Persistant</div>
+              <div class="feature-desc">Vos données sont sauvegardées automatiquement avec LDSS</div>
+            </div>
+          </div>
+
+          <h2>Applications incluses</h2>
+          <ul>
+            <li><strong>Calculatrice</strong> - Opérations mathématiques basiques et avancées</li>
+            <li><strong>Terminal</strong> - 50+ commandes bash-like</li>
+            <li><strong>Bloc-notes</strong> - Éditeur de texte avec sauvegarde automatique</li>
+            <li><strong>Gestionnaire de fichiers</strong> - Navigation dans le système de fichiers virtuel</li>
+            <li><strong>Éditeur de code</strong> - Multi-tabs avec coloration syntaxique</li>
+            <li><strong>JavaScript REPL</strong> - Exécutez du code JS en temps réel</li>
+            <li><strong>Gestionnaire de tâches</strong> - Surveillez les processus en cours</li>
+          </ul>
+
+          <div class="tip">
+            <div class="tip-title">Astuce</div>
+            <div>Utilisez <span class="kbd">Échap</span> pour ouvrir le menu Démarrer rapidement</div>
+          </div>
+        `;
+      }
+
+      renderQuickstart() {
+        return `
+          <h1>Guide rapide</h1>
+          <p>Apprenez les bases de NEXUS OS en 5 minutes.</p>
+
+          <h2>1. Lancer une application</h2>
+          <p>Cliquez sur le bouton <strong>Démarrer</strong> en bas à gauche, puis sélectionnez une application dans la liste.</p>
+
+          <h2>2. Gérer les fenêtres</h2>
+          <p>Chaque application s'ouvre dans une fenêtre que vous pouvez :</p>
+          <ul>
+            <li><strong>Déplacer</strong> - Glissez la barre de titre</li>
+            <li><strong>Redimensionner</strong> - Tirez les bords</li>
+            <li><strong>Minimiser</strong> - Cliquez sur <code>−</code></li>
+            <li><strong>Maximiser</strong> - Cliquez sur <code>□</code></li>
+            <li><strong>Fermer</strong> - Cliquez sur <code>×</code></li>
+          </ul>
+
+          <h2>3. Terminal</h2>
+          <p>Le Terminal supporte plus de 50 commandes. Essayez :</p>
+          <pre><code>help           # Liste toutes les commandes
+ls             # Liste les fichiers
+cd Documents   # Changer de répertoire
+cat readme.md  # Lire un fichier
+stress 10      # Test de charge CPU</code></pre>
+
+          <h2>4. JavaScript REPL</h2>
+          <p>Exécutez du code JavaScript en temps réel :</p>
+          <pre><code>// Charger une bibliothèque depuis CDN
+// URL: https://cdn.jsdelivr.net/npm/lodash
+
+// Utiliser lodash
+console.log(_.chunk([1,2,3,4,5,6], 2));
+
+// Appeler une API
+fetch('https://api.github.com/users/github')
+  .then(r => r.json())
+  .then(d => console.log(d));</code></pre>
+
+          <h2>5. Raccourcis clavier</h2>
+          <table>
+            <tr>
+              <th>Raccourci</th>
+              <th>Action</th>
+            </tr>
+            <tr>
+              <td><span class="kbd">Échap</span></td>
+              <td>Ouvrir/fermer le menu Démarrer</td>
+            </tr>
+            <tr>
+              <td><span class="kbd">Ctrl</span> + <span class="kbd">S</span></td>
+              <td>Sauvegarder (dans éditeurs)</td>
+            </tr>
+            <tr>
+              <td><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span></td>
+              <td>Exécuter code (REPL)</td>
+            </tr>
+          </table>
+
+          <div class="warning">
+            <div class="warning-title">Important</div>
+            <div>Les données sont sauvegardées automatiquement toutes les 30 secondes. Pour les sauvegardes manuelles, utilisez le bouton Sauvegarder dans chaque application.</div>
+          </div>
+        `;
+      }
+
+      renderFeatures() {
+        return `
+          <h1>Fonctionnalités</h1>
+
+          <h2>Système d'exploitation complet</h2>
+          <p>NEXUS OS est un véritable système d'exploitation avec :</p>
+          <ul>
+            <li>Gestionnaire de fenêtres avec drag & drop</li>
+            <li>Gestionnaire de processus (PIDs, lifecycle)</li>
+            <li>Communication inter-processus (IPC)</li>
+            <li>Système de fichiers virtuel</li>
+            <li>CPU Manager (4 cœurs WebWorker)</li>
+            <li>Système de logs complet</li>
+          </ul>
+
+          <h2>Applications productives</h2>
+          <p>7 applications intégrées pour tous vos besoins :</p>
+          <ul>
+            <li><strong>Calculatrice</strong> - Math, scientifique, historique</li>
+            <li><strong>Terminal</strong> - 50+ commandes Unix-like</li>
+            <li><strong>Bloc-notes</strong> - Éditeur simple avec auto-save</li>
+            <li><strong>Gestionnaire de fichiers</strong> - Navigation visuelle</li>
+            <li><strong>Éditeur de code</strong> - Multi-tabs, syntax highlighting</li>
+            <li><strong>JavaScript REPL</strong> - Console interactive avancée</li>
+            <li><strong>Gestionnaire de tâches</strong> - Monitoring système</li>
+          </ul>
+
+          <h2>Technologie avancée</h2>
+          <ul>
+            <li><strong>WebWorkers</strong> - 4 cœurs pour calculs parallèles</li>
+            <li><strong>LDSS</strong> - Stockage distribué avec 6 workers</li>
+            <li><strong>Service Worker</strong> - Support hors ligne (PWA)</li>
+            <li><strong>IPC</strong> - Communication rapide entre apps</li>
+            <li><strong>Logs System</strong> - Diagnostic complet</li>
+          </ul>
+
+          <h2>Performance</h2>
+          <p>Optimisé pour la rapidité :</p>
+          <ul>
+            <li>Boot en moins de 2 secondes</li>
+            <li>Lancement d'app en moins de 500ms</li>
+            <li>IPC avec latence &lt; 10ms</li>
+            <li>Utilisation mémoire &lt; 50MB (4 apps)</li>
+          </ul>
+        `;
+      }
+
+      renderTerminal() {
+        return `
+          <h1>Terminal</h1>
+          <p>Interface de ligne de commande avec plus de 50 commandes.</p>
+
+          <h2>Commandes disponibles</h2>
+
+          <h3>Fichiers & Dossiers</h3>
+          <pre><code>ls              # Lister fichiers
+cd Documents    # Changer de répertoire
+pwd             # Afficher répertoire actuel
+mkdir dossier   # Créer dossier
+touch file.txt  # Créer fichier
+rm file.txt     # Supprimer fichier
+cp src dest     # Copier fichier
+mv src dest     # Déplacer/renommer
+cat file.txt    # Lire fichier
+find keyword    # Rechercher fichiers
+tree            # Arborescence
+head file.txt   # 10 premières lignes
+tail file.txt   # 10 dernières lignes</code></pre>
+
+          <h3>Système</h3>
+          <pre><code>ps              # Liste des processus
+kill PID        # Tuer processus
+top             # Processus en temps réel
+sysinfo         # Info système
+uptime          # Temps de fonctionnement
+df              # Espace disque
+du              # Utilisation disque
+free            # Mémoire disponible
+env             # Variables d'environnement</code></pre>
+
+          <h3>Réseau (simulé)</h3>
+          <pre><code>ping host       # Ping un hôte
+curl url        # Fetch URL
+wget url        # Télécharger
+ifconfig        # Config réseau</code></pre>
+
+          <h3>Performance</h3>
+          <pre><code>stress 10       # Test CPU (10 tâches)
+benchmark       # Benchmark complet</code></pre>
+
+          <div class="tip">
+            <div class="tip-title">Astuce</div>
+            <div>Utilisez <span class="kbd">↑</span> et <span class="kbd">↓</span> pour naviguer dans l'historique des commandes.</div>
+          </div>
+        `;
+      }
+
+      renderREPL() {
+        return `
+          <h1>JavaScript REPL</h1>
+          <p>Console JavaScript interactive pour exécuter du code en temps réel.</p>
+
+          <h2>Fonctionnalités</h2>
+          <ul>
+            <li>Exécution de code JavaScript asynchrone</li>
+            <li>Chargement de bibliothèques via CDN</li>
+            <li>Templates pour démarrage rapide</li>
+            <li>Support des API AI (OpenAI, Claude)</li>
+            <li>Console avec historique complet</li>
+          </ul>
+
+          <h2>Charger une bibliothèque</h2>
+          <p>Dans le champ CDN, entrez l'URL d'une bibliothèque JavaScript :</p>
+          <pre><code>https://cdn.jsdelivr.net/npm/lodash
+https://cdn.jsdelivr.net/npm/axios
+https://cdn.jsdelivr.net/npm/moment
+https://cdn.jsdelivr.net/npm/chart.js</code></pre>
+
+          <p>Cliquez sur <strong>Charger CDN</strong>, puis utilisez la bibliothèque :</p>
+          <pre><code>// Lodash chargé
+const data = [1, 2, 3, 4, 5];
+console.log(_.sum(data));  // 15
+console.log(_.mean(data)); // 3</code></pre>
+
+          <h2>Appeler une API AI</h2>
+          <p>REPL inclut des templates pour OpenAI et Claude :</p>
+          <pre><code>// OpenAI GPT-4
+const OPENAI_API_KEY = 'votre-clé';
+
+async function askAI(question) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': \`Bearer \${OPENAI_API_KEY}\`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-4',
+      messages: [{ role: 'user', content: question }]
+    })
+  });
+  
+  const data = await res.json();
+  console.log(data.choices[0].message.content);
+}
+
+await askAI('Explique NEXUS OS');</code></pre>
+
+          <h2>Raccourcis</h2>
+          <table>
+            <tr>
+              <th>Raccourci</th>
+              <th>Action</th>
+            </tr>
+            <tr>
+              <td><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span></td>
+              <td>Exécuter le code</td>
+            </tr>
+            <tr>
+              <td><span class="kbd">Tab</span></td>
+              <td>Indentation (2 espaces)</td>
+            </tr>
+          </table>
+        `;
+      }
+
+      renderCreateApp() {
+        return `
+          <h1>Créer une application</h1>
+          <p>Développez votre propre application pour NEXUS OS.</p>
+
+          <h2>Structure minimale</h2>
+          <pre><code>&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;title&gt;Mon App&lt;/title&gt;
+  &lt;style&gt;
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #1a1a24;
+      color: #e8e8f0;
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;Mon Application&lt;/h1&gt;
+  
+  &lt;script&gt;
+    class MonApp {
+      constructor() {
+        this.pid = null;
+        this.init();
+      }
+      
+      init() {
+        // Notifier le système que l'app est prête
+        this.notifyParentReady();
+        
+        // Écouter les messages du système
+        window.addEventListener('message', (e) => {
+          if (e.data.type === 'kernel:config') {
+            this.pid = e.data.pid;
+            console.log('App PID:', this.pid);
+          }
+        });
+      }
+      
+      notifyParentReady() {
+        window.parent.postMessage({
+          type: 'app:ready',
+          pid: this.pid
+        }, '*');
+      }
+    }
+    
+    new MonApp();
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+          <h2>Communication IPC</h2>
+          <p>Votre app peut communiquer avec le système :</p>
+          <pre><code>// Sauvegarder des données
+window.parent.postMessage({
+  type: 'storage:set',
+  pid: this.pid,
+  data: {
+    key: 'mon_app_data',
+    value: { foo: 'bar' }
+  }
+}, '*');
+
+// Charger des données
+window.parent.postMessage({
+  type: 'storage:get',
+  pid: this.pid,
+  data: { key: 'mon_app_data' }
+}, '*');
+
+// Utiliser le CPU Manager
+window.parent.postMessage({
+  type: 'cpu:execute',
+  pid: this.pid,
+  data: {
+    task: 'fibonacci',
+    params: { n: 40 }
+  }
+}, '*');</code></pre>
+
+          <h2>Ajouter au menu</h2>
+          <p>Modifiez <code>index.html</code> ligne 1040 :</p>
+          <pre><code>const AVAILABLE_APPS = [
+  { name: 'calculator', title: 'Calculatrice', desc: 'Calculatrice' },
+  { name: 'mon-app', title: 'Mon App', desc: 'Ma description' }
+];</code></pre>
+
+          <div class="tip">
+            <div class="tip-title">Structure des dossiers</div>
+            <div>Placez votre app dans <code>apps/mon-app/app.html</code></div>
+          </div>
+        `;
+      }
+
+      renderAPI() {
+        return `
+          <h1>Référence API</h1>
+
+          <h2>Messages IPC disponibles</h2>
+
+          <h3>Système</h3>
+          <table>
+            <tr>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td><code>app:ready</code></td>
+              <td>Notifier que l'app est prête</td>
+            </tr>
+            <tr>
+              <td><code>app:close</code></td>
+              <td>Fermer l'application</td>
+            </tr>
+            <tr>
+              <td><code>app:minimize</code></td>
+              <td>Minimiser la fenêtre</td>
+            </tr>
+            <tr>
+              <td><code>app:maximize</code></td>
+              <td>Maximiser la fenêtre</td>
+            </tr>
+          </table>
+
+          <h3>Stockage</h3>
+          <table>
+            <tr>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td><code>storage:set</code></td>
+              <td>Sauvegarder données</td>
+            </tr>
+            <tr>
+              <td><code>storage:get</code></td>
+              <td>Charger données</td>
+            </tr>
+          </table>
+
+          <h3>CPU Manager</h3>
+          <table>
+            <tr>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+            <tr>
+              <td><code>cpu:execute</code></td>
+              <td>Exécuter tâche CPU</td>
+            </tr>
+            <tr>
+              <td><code>cpu:batch</code></td>
+              <td>Exécuter plusieurs tâches</td>
+            </tr>
+            <tr>
+              <td><code>cpu:stats</code></td>
+              <td>Statistiques CPU</td>
+            </tr>
+          </table>
+
+          <h2>Tâches CPU disponibles</h2>
+          <ul>
+            <li><code>fibonacci</code> - Calcul Fibonacci</li>
+            <li><code>factorial</code> - Calcul factorielle</li>
+            <li><code>isPrime</code> - Test nombre premier</li>
+            <li><code>hash</code> - Hash simple</li>
+            <li><code>sort</code> - Tri tableau</li>
+            <li><code>search</code> - Recherche dans tableau</li>
+          </ul>
+        `;
+      }
+
+      renderContributing() {
+        return `
+          <h1>Contribuer</h1>
+          <p>NEXUS OS est open source. Vos contributions sont les bienvenues !</p>
+
+          <h2>Comment contribuer</h2>
+          <ol>
+            <li>Fork le repository GitHub</li>
+            <li>Créez une branche pour votre feature</li>
+            <li>Développez votre feature</li>
+            <li>Testez avec logs.html</li>
+            <li>Créez une Pull Request</li>
+          </ol>
+
+          <h2>Idées de contributions</h2>
+          <ul>
+            <li>Nouvelles applications</li>
+            <li>Amélioration des apps existantes</li>
+            <li>Nouvelles commandes Terminal</li>
+            <li>Amélioration de la documentation</li>
+            <li>Correction de bugs</li>
+            <li>Optimisations de performance</li>
+          </ul>
+
+          <h2>Tests</h2>
+          <p>Avant de soumettre, testez avec <code>logs.html</code> :</p>
+          <pre><code>// Ouvrir logs.html
+http://localhost:3000/logs.html
+
+// Vérifier que tous les tests passent
+// Tester votre feature en mode debug</code></pre>
+
+          <h2>Style de code</h2>
+          <ul>
+            <li>Pas d'emojis dans le code</li>
+            <li>Console.log pour debug</li>
+            <li>Try-catch pour erreurs</li>
+            <li>Commentaires en français</li>
+          </ul>
+
+          <div class="tip">
+            <div class="tip-title">Besoin d'aide ?</div>
+            <div>Ouvrez une issue sur GitHub pour poser vos questions</div>
+          </div>
+        `;
+      }
+
+      renderCalculator() {
+        return `<h1>Calculatrice</h1><p>Application de calcul basique et avancé.</p>`;
+      }
+
+      renderNotepad() {
+        return `<h1>Bloc-notes</h1><p>Éditeur de texte simple avec sauvegarde automatique.</p>`;
+      }
+
+      renderFileManager() {
+        return `<h1>Gestionnaire de fichiers</h1><p>Navigation dans le système de fichiers virtuel.</p>`;
+      }
+
+      renderCodeEditor() {
+        return `<h1>Éditeur de code</h1><p>Éditeur multi-tabs avec coloration syntaxique.</p>`;
+      }
+
+      renderTaskManager() {
+        return `<h1>Gestionnaire de tâches</h1><p>Surveillance des processus système.</p>`;
+      }
+
+      renderArchitecture() {
+        return `<h1>Architecture</h1><p>Structure du système NEXUS OS.</p>`;
+      }
+
+      renderIPC() {
+        return `<h1>Communication IPC</h1><p>Système de messagerie inter-processus.</p>`;
+      }
+
+      renderStorage() {
+        return `<h1>Stockage</h1><p>Système de persistence avec LDSS.</p>`;
+      }
+
+      renderCPU() {
+        return `<h1>CPU Manager</h1><p>Gestion des 4 cœurs WebWorker pour calculs parallèles.</p>`;
+      }
+
+      notifyParentReady() {
+        window.parent.postMessage({
+          type: 'app:ready',
+          pid: this.pid
+        }, '*');
+      }
+    }
+
+    new Documentation();
+  </script>
+</body>
+</html>
