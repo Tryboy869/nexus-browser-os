@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paramètres</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a24;
+      color: #e8e8f0;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .sidebar {
+      width: 250px;
+      background: rgba(0, 0, 0, 0.2);
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .sidebar-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      color: #667eea;
+    }
+
+    .sidebar-section {
+      margin-bottom: 30px;
+    }
+
+    .sidebar-section-title {
+      font-size: 12px;
+      color: #9090a8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .sidebar-item {
+      padding: 10px 15px;
+      margin-bottom: 5px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 14px;
+    }
+
+    .sidebar-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .sidebar-item.active {
+      background: rgba(102, 126, 234, 0.2);
+      color: #667eea;
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 30px;
+    }
+
+    .content-header {
+      margin-bottom: 30px;
+    }
+
+    .content-title {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .content-description {
+      font-size: 14px;
+      color: #9090a8;
+    }
+
+    .setting-group {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .setting-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .setting-item:last-child {
+      border-bottom: none;
+    }
+
+    .setting-label {
+      flex: 1;
+    }
+
+    .setting-title {
+      font-size: 15px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .setting-desc {
+      font-size: 13px;
+      color: #9090a8;
+    }
+
+    .setting-control {
+      margin-left: 20px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    select {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      color: #e8e8f0;
+      padding: 8px 12px;
+      font-size: 14px;
+      min-width: 200px;
+    }
+
+    .toggle {
+      position: relative;
+      width: 50px;
+      height: 26px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 13px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .toggle.active {
+      background: #667eea;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+    }
+
+    .toggle.active .toggle-slider {
+      transform: translateX(24px);
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    button:hover {
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      transform: translateY(-1px);
+    }
+
+    button.secondary {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .color-picker {
+      width: 50px;
+      height: 30px;
+      border-radius: 6px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      cursor: pointer;
+    }
+
+    .theme-preview {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .theme-card {
+      aspect-ratio: 16/9;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s ease;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .theme-card:hover {
+      transform: scale(1.05);
+    }
+
+    .theme-card.active {
+      border-color: #667eea;
+    }
+
+    .theme-card.dark {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+
+    .theme-card.light {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+
+    .theme-card.purple {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .theme-name {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .theme-card.light .theme-name {
+      color: #2d3748;
+    }
+
+    .about-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
+      color: white;
+    }
+
+    .about-logo {
+      font-size: 48px;
+      font-weight: 700;
+      margin-bottom: 15px;
+    }
+
+    .about-version {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-bottom: 20px;
+    }
+
+    .about-info {
+      font-size: 13px;
+      line-height: 1.6;
+      opacity: 0.8;
+    }
+
+    .notification {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(102, 126, 234, 0.95);
+      color: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s ease;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .notification.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-title">Paramètres</div>
+    
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Général</div>
+      <div class="sidebar-item active" data-page="appearance">Apparence</div>
+      <div class="sidebar-item" data-page="language">Langue</div>
+      <div class="sidebar-item" data-page="notifications">Notifications</div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">Système</div>
+      <div class="sidebar-item" data-page="storage">Stockage</div>
+      <div class="sidebar-item" data-page="performance">Performance</div>
+      <div class="sidebar-item" data-page="shortcuts">Raccourcis</div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">À propos</div>
+      <div class="sidebar-item" data-page="about">À propos</div>
+    </div>
+  </div>
+
+  <div class="content" id="content">
+    <!-- Le contenu sera injecté dynamiquement -->
+  </div>
+
+  <div class="notification" id="notification"></div>
+
+  <script>
+    class Settings {
+      constructor() {
+        this.pid = null;
+        this.currentPage = 'appearance';
+        this.settings = {
+          theme: 'dark',
+          language: 'fr',
+          notifications: true,
+          autoSave: true,
+          cpuCores: 4,
+          soundEnabled: true,
+          username: 'Utilisateur',
+          wallpaper: null
+        };
+
+        this.init();
+      }
+
+      init() {
+        this.loadSettings();
+        this.setupEventListeners();
+        this.renderPage(this.currentPage);
+        this.notifyParentReady();
+
+        window.addEventListener('message', (e) => {
+          if (e.data.type === 'kernel:config') {
+            this.pid = e.data.pid;
+            console.log('[Settings] Reçu config, PID:', this.pid);
+          } else if (e.data.type === 'storage:get:response') {
+            if (e.data.data) {
+              this.settings = { ...this.settings, ...e.data.data };
+              this.renderPage(this.currentPage);
+            }
+          }
+        });
+      }
+
+      setupEventListeners() {
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+          item.addEventListener('click', () => {
+            document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+            this.currentPage = item.dataset.page;
+            this.renderPage(this.currentPage);
+          });
+        });
+      }
+
+      renderPage(page) {
+        const content = document.getElementById('content');
+        
+        const pages = {
+          profile: this.renderProfile.bind(this),
+          appearance: this.renderAppearance.bind(this),
+          language: this.renderLanguage.bind(this),
+          notifications: this.renderNotifications.bind(this),
+          storage: this.renderStorage.bind(this),
+          performance: this.renderPerformance.bind(this),
+          shortcuts: this.renderShortcuts.bind(this),
+          about: this.renderAbout.bind(this)
+        };
+
+        if (pages[page]) {
+          content.innerHTML = pages[page]();
+          this.attachPageListeners(page);
+        }
+      }
+
+      renderProfile() {
+        return `
+          <div class="content-header">
+            <div class="content-title">Profil utilisateur</div>
+            <div class="content-description">Personnalisez votre profil</div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-item">
+              <div class="setting-label">
+                <div class="setting-title">Nom d'utilisateur</div>
+                <div class="setting-desc">Votre nom affiché dans le système</div>
+              </div>
+              <div class="setting-control">
+                <input type="text" id="username-input" value="${this.settings.username}" placeholder="Votre nom">
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
+              <div class="setting-label">
+                <div class="setting-title">Fond d'écran</div>
+                <div class="setting-desc">Personnalisez votre bureau (max 2MB)</div>
+              </div>
+              <div style="margin-top: 15px; width: 100%;">
+                <input type="file" id="wallpaper-input" accept="image/*" style="display: none;">
+                <button id="upload-wallpaper" style="margin-right: 10px;">Choisir une image</button>
+                ${this.settings.wallpaper ? '<button id="remove-wallpaper" class="secondary">Supprimer</button>' : ''}
+                ${this.settings.wallpaper ? `<div style="margin-top: 15px;"><img src="${this.settings.wallpaper}" style="max-width: 300px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);"></div>` : ''}
+              </div>
+            </div>
+          </div>
+
+          <button id="save-profile">Enregistrer le profil</button>
+        `;
+      }
+
+      renderAppearance() {
+        return `
+          <div class="content-header">
+            <div class="content-title">Apparence</div>
+            <div class="content-description">Personnalisez l'apparence du système</div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-item">
+              <div class="setting-label">
+                <div class="setting-title">Thème</div>
+                <div class="setting-desc">Choisissez le thème de l'interface</div>
+              </div>
+            </div>
+            <div class="theme-preview">
+              <div class="theme-card dark ${this.settings.theme === 'dark' ? 'active' : ''}" data-theme="dark">
+                <div class="theme-name">Sombre</div>
+              </div>
+              <div class="theme-card light ${this.settings.theme === 'light' ? 'active' : ''}" data-theme="light">
+                <div class="theme-name">Clair</div>
+              </div>
+              <div class="theme-card purple ${this.settings.theme === 'purple' ? 'active' : ''}" data-theme="purple">
+                <div class="theme-name">Violet</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-item">
+              <div class="setting-label">
+                <div class="setting-title">Couleur d'accentuation</div>
+                <div class="setting-desc">Couleur principale de l'interface</div>
+              </div>
+              <div class="setting-control">
+                <input type="color" class="color-picker" id="accent-color" value="#667eea">
+              </div>
+            </div>
+          </div>
+
+          <button id="save-appearance">Enregistrer les modifications</button>
+        `;
+      }
+
+      renderLanguage() {
+        return `
+          <div class="content-header">
+            <div class="content-title">Langue</div>
+            <div class="content-description">Configurez la langue du système</div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-item">
+              <div class="setting-label">
+                <div class="setting-title">Langue de l'interface</div>
+                <div class="setting-desc">Langue utilisée dans le système</div>
+              </div>
+              <div class="setting-control">
+                <select id="language-select">
+                  <option value="fr" ${this.settings.language === 'fr' ? 'selected' : ''}>Français</option>
+                  <option value="en" ${this.settings.language === 'en' ? 'selected' : ''}>English</option>
+                  <option value="es" ${this.settings.language === 'es' ? 'selected' : ''}>Español</option>
+                  <option value="de" ${this.settings.language === 'de' ? 'selected' : ''}>Deutsch</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <button id="save-language">Enregistrer</button>
+        `;
+      }
+
+      renderNotifications() {
+        return `
+          <div class="content-header">
+            <div class="content-title">Notifications</div>
+            <div class="content-description">Gérez les notifications système</div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-item">
+              <div class="setting-label">
+                <div class="setting-title">Activer les notifications</div>
+                <div class="setting-desc">Afficher les notifications du système</div>
+              </div>
+              <div class="setting-control">
+                <div class="toggle ${this.settings.notifications ? 'active' : ''}" id="toggle-notifications">
+                  <div class="toggle-slider"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label">
+                <div class="setting-title">Sons</div>
+                <div class="setting-desc">Jouer un son pour les notifications</div>
+              </div>
+              <div class="setting-control">
+                <div class="toggle ${this.settings.soundEnabled ? 'active' : ''}" id="toggle-sound">
+                  <div class="toggle-slider"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      renderStorage() {
+        return `
+          <div class="content-header">
+            <div class="content-title">Stockage</div>
+            <div class="content-description">Gérez le stockage du système</div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-item">
+              <div class="setting-label">
+                <div class="setting-title">Sauvegarde automatique</div>
+                <div class="setting-desc">Sauvegarder automatiquement l'état du système</div>
+              </div>
+              <div class="setting-control">
+                <div class="toggle ${this.settings.autoSave ? 'active' : ''}" id="toggle-autosave">
+                  <div class="toggle-slider"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label">
+                <div class="setting-title">Utilisation du stockage</div>
+                <div class="setting-desc">Environ 2.4 MB utilisés</div>
+              </div>
+            </div>
+          </div>
+
+          <button id="clear-storage" class="secondary">Effacer les données</button>
+        `;
+      }
+
+      renderPerformance() {
+        return `
+          <div class="content-header">
+            <div class="content-title">Performance</div>
+            <div class="content-description">Optimisez les performances du système</div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-item">
+              <div class="setting-label">
+                <div class="setting-title">Nombre de cœurs CPU</div>
+                <div class="setting-desc">Nombre de workers pour les calculs</div>
+              </div>
+              <div class="setting-control">
+                <select id="cpu-cores">
+                  <option value="2" ${this.settings.cpuCores === 2 ? 'selected' : ''}>2 cœurs</option>
+                  <option value="4" ${this.settings.cpuCores === 4 ? 'selected' : ''}>4 cœurs</option>
+                  <option value="6" ${this.settings.cpuCores === 6 ? 'selected' : ''}>6 cœurs</option>
+                  <option value="8" ${this.settings.cpuCores === 8 ? 'selected' : ''}>8 cœurs</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <button id="save-performance">Enregistrer (redémarrage requis)</button>
+        `;
+      }
+
+      renderShortcuts() {
+        return `
+          <div class="content-header">
+            <div class="content-title">Raccourcis clavier</div>
+            <div class="content-description">Raccourcis système disponibles</div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-item">
+              <div class="setting-label">
+                <div class="setting-title">Ouvrir le menu Démarrer</div>
+              </div>
+              <div class="setting-control">
+                <kbd>Échap</kbd>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label">
+                <div class="setting-title">Fermer l'application</div>
+              </div>
+              <div class="setting-control">
+                <kbd>Alt</kbd> + <kbd>F4</kbd>
+              </div>
+            </div>
+
+            <div class="setting-item">
+              <div class="setting-label">
+                <div class="setting-title">Minimiser la fenêtre</div>
+              </div>
+              <div class="setting-control">
+                <kbd>Ctrl</kbd> + <kbd>M</kbd>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      renderAbout() {
+        return `
+          <div class="content-header">
+            <div class="content-title">À propos</div>
+            <div class="content-description">Informations sur NEXUS OS</div>
+          </div>
+
+          <div class="about-card">
+            <div class="about-logo">NEXUS OS</div>
+            <div class="about-version">Version 0.1.0</div>
+            <div class="about-info">
+              Système d'exploitation complet fonctionnant à 100% dans votre navigateur.<br><br>
+              <strong>Développé par Daouda Abdoul Anzize</strong><br>
+              Fondateur de Nexus Studio<br><br>
+              Powered by Nexus Studio<br>
+              © 2025 Nexus Studio. Tous droits réservés.<br><br>
+              📧 nexusstudio100@gmail.com<br>
+              🐙 GitHub: @Tryboy869
+            </div>
+          </div>
+        `;
+      }
+
+      attachPageListeners(page) {
+        // Profile
+        const uploadBtn = document.getElementById('upload-wallpaper');
+        if (uploadBtn) {
+          uploadBtn.addEventListener('click', () => {
+            document.getElementById('wallpaper-input').click();
+          });
+        }
+
+        const wallpaperInput = document.getElementById('wallpaper-input');
+        if (wallpaperInput) {
+          wallpaperInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              if (file.size > 2 * 1024 * 1024) {
+                alert('Fichier trop volumineux (max 2MB)');
+                return;
+              }
+
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                this.settings.wallpaper = e.target.result;
+                this.renderPage('profile');
+                this.showNotification('Image chargée');
+              };
+              reader.readAsDataURL(file);
+            }
+          });
+        }
+
+        const removeWallpaperBtn = document.getElementById('remove-wallpaper');
+        if (removeWallpaperBtn) {
+          removeWallpaperBtn.addEventListener('click', () => {
+            this.settings.wallpaper = null;
+            this.renderPage('profile');
+            this.saveSettings('Fond d\'écran supprimé');
+          });
+        }
+
+        // Thèmes
+        document.querySelectorAll('.theme-card').forEach(card => {
+          card.addEventListener('click', () => {
+            this.settings.theme = card.dataset.theme;
+            document.querySelectorAll('.theme-card').forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+          });
+        });
+
+        // Toggles
+        document.querySelectorAll('.toggle').forEach(toggle => {
+          toggle.addEventListener('click', () => {
+            toggle.classList.toggle('active');
+            const id = toggle.id.replace('toggle-', '');
+            if (id === 'notifications') this.settings.notifications = toggle.classList.contains('active');
+            if (id === 'sound') this.settings.soundEnabled = toggle.classList.contains('active');
+            if (id === 'autosave') this.settings.autoSave = toggle.classList.contains('active');
+            this.saveSettings();
+          });
+        });
+
+        // Boutons
+        const saveButtons = {
+          'save-profile': () => {
+            this.settings.username = document.getElementById('username-input').value;
+            this.saveSettings('Profil enregistré');
+          },
+          'save-appearance': () => this.saveSettings('Apparence enregistrée'),
+          'save-language': () => {
+            this.settings.language = document.getElementById('language-select').value;
+            this.saveSettings('Langue modifiée');
+          },
+          'save-performance': () => {
+            this.settings.cpuCores = parseInt(document.getElementById('cpu-cores').value);
+            this.saveSettings('Performance mise à jour (redémarrage requis)');
+          },
+          'clear-storage': () => {
+            if (confirm('Êtes-vous sûr de vouloir effacer toutes les données ?')) {
+              this.clearStorage();
+            }
+          }
+        };
+
+        Object.entries(saveButtons).forEach(([id, handler]) => {
+          const btn = document.getElementById(id);
+          if (btn) btn.addEventListener('click', handler);
+        });
+      }
+
+      saveSettings(message = 'Paramètres enregistrés') {
+        window.parent.postMessage({
+          type: 'storage:set',
+          pid: this.pid,
+          data: {
+            key: 'system_settings',
+            value: this.settings
+          }
+        }, '*');
+
+        this.showNotification(message);
+        console.log('[Settings] Paramètres enregistrés:', this.settings);
+      }
+
+      loadSettings() {
+        window.parent.postMessage({
+          type: 'storage:get',
+          pid: this.pid,
+          data: { key: 'system_settings' }
+        }, '*');
+      }
+
+      clearStorage() {
+        this.settings = {
+          theme: 'dark',
+          language: 'fr',
+          notifications: true,
+          autoSave: true,
+          cpuCores: 4,
+          soundEnabled: true,
+          username: 'Utilisateur',
+          wallpaper: null
+        };
+        this.saveSettings('Données effacées');
+        this.renderPage(this.currentPage);
+      }
+
+      showNotification(message) {
+        const notification = document.getElementById('notification');
+        notification.textContent = message;
+        notification.classList.add('show');
+
+        setTimeout(() => {
+          notification.classList.remove('show');
+        }, 3000);
+      }
+
+      notifyParentReady() {
+        console.log('[Settings] Notification au parent : app prête');
+        window.parent.postMessage({
+          type: 'app:ready',
+          pid: this.pid
+        }, '*');
+      }
+    }
+
+    const settings = new Settings();
+    console.log('[Settings] App initialisée');
+  </script>
+</body>
+</html>
