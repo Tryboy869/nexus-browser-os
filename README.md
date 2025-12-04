@@ -1,288 +1,198 @@
-# 🚀 NEXUS Browser OS
+# NEXUS Browser OS
 
-Un système d'exploitation complet qui tourne entièrement dans votre navigateur. Zéro serveur, zéro installation, 100% offline-capable.
+> **Version 0.1.0** - Système d'exploitation complet fonctionnant à 100% dans votre navigateur
 
-![NEXUS OS](https://img.shields.io/badge/NEXUS-OS-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
-![PWA](https://img.shields.io/badge/PWA-Ready-purple)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Status: Beta](https://img.shields.io/badge/Status-Beta-yellow.svg)]()
+[![Powered by Nexus Studio](https://img.shields.io/badge/Powered%20by-Nexus%20Studio-blue)]()
 
-## ✨ Caractéristiques
+Un véritable système d'exploitation qui tourne entièrement dans votre navigateur. Aucune installation, aucun serveur, 100% client-side.
 
-- 🖥️ **Desktop complet** avec taskbar, start menu, et window management
-- ⚡ **CPU virtuel** avec WebWorkers pour calcul parallèle
-- 💾 **Système de fichiers** persistant (IndexedDB)
-- 📱 **PWA installable** - fonctionne comme une vraie app
-- 🔒 **100% offline** après première visite
-- 🎨 **Design moderne** avec glassmorphism et animations fluides
-- 🔧 **7 applications** intégrées
+**Powered by Nexus Studio**
 
-## 📦 Applications Incluses
+## 🌟 Pourquoi NEXUS OS ?
 
-1. **Calculatrice** - Scientifique avec historique
-2. **Bloc-notes** - Éditeur de texte simple
-3. **Terminal** - CLI virtuel avec commandes système
-4. **Gestionnaire de fichiers** - Navigation hiérarchique complète
-5. **Éditeur de code** - Syntax highlighting multi-langages
-6. **Gestionnaire de tâches** - Monitoring CPU/RAM en temps réel
-7. **Paramètres** - Configuration système
+- **100% Browser** : Tout fonctionne dans le navigateur, zéro installation
+- **Offline First** : Service Worker pour fonctionnement hors ligne
+- **Puissant** : 4 cœurs CPU via WebWorkers pour calculs parallèles
+- **Persistant** : Vos données sauvegardées automatiquement
+- **Gratuit** : Open source sous licence MIT
 
-## 🏗️ Architecture
+## 🚀 Démarrage Rapide
 
-```
-nexus-browser-os/
-├── index.html              # Point d'entrée (Desktop)
-├── manifest.json           # Configuration PWA
-├── sw.js                  # Service Worker (offline)
-├── system/                # Noyau OS
-│   ├── kernel.js          # Orchestrateur principal
-│   ├── cpu-manager.js     # Gestion WebWorkers
-│   ├── filesystem.js      # FS virtuel (IndexedDB)
-│   ├── storage.js         # Key-value store
-│   ├── window-manager.js  # Gestion fenêtres
-│   ├── ipc.js            # Communication inter-apps
-│   ├── router.js         # Routing client-side
-│   ├── state.js          # State management
-│   └── notifications.js   # Système notifications
-└── apps/                  # Applications
-    ├── calculator/
-    ├── notepad/
-    ├── terminal/
-    ├── file-manager/
-    ├── code-editor/
-    ├── task-manager/
-    └── settings/
-```
+### En ligne (recommandé)
 
-## 🚀 Installation
+Ouvrez simplement : [nexus-os.vercel.app](https://nexus-os.vercel.app) (remplacer par votre URL)
 
-### Option 1 : Déploiement GitHub Pages (Recommandé)
+### En local
 
 ```bash
-# 1. Clone le repository
-git clone https://github.com/votre-username/nexus-browser-os.git
+# Cloner le repo
+git clone https://github.com/Tryboy869/nexus-browser-os.git
 cd nexus-browser-os
 
-# 2. Push vers GitHub
-git add .
-git commit -m "Initial commit"
-git push origin main
-
-# 3. Activer GitHub Pages
-# Settings → Pages → Source: main branch → Save
-```
-
-Votre OS sera accessible à : `https://votre-username.github.io/nexus-browser-os/`
-
-### Option 2 : Local
-
-```bash
-# Serveur HTTP simple
-python3 -m http.server 8000
+# Lancer un serveur HTTP
+python -m http.server 3000
 # ou
-npx serve .
+npx http-server -p 3000
 
-# Ouvrir http://localhost:8000
+# Ouvrir dans votre navigateur
+http://localhost:3000
 ```
 
-### Option 3 : Netlify/Vercel (1-click)
+## 📱 Applications Incluses
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy)
+### Applications
 
-## 💻 Utilisation
+- **Calculatrice** - Opérations mathématiques de base et avancées
+- **Terminal** - 50+ commandes Unix-like (ls, cd, grep, etc.)
+- **Bloc-notes** - Éditeur de texte simple avec sauvegarde automatique
+- **Gestionnaire de fichiers** - Navigation dans le système de fichiers virtuel
+- **Éditeur de code** - Multi-tabs avec support de plusieurs langages
+- **JavaScript REPL** - Console interactive, chargement CDN, appels API AI
+- **Documentation** - Guide complet du système
 
-### Démarrage
+### Système
 
-1. Ouvrir l'URL dans Chrome/Edge/Firefox
-2. L'OS démarre automatiquement (boot ~1 seconde)
-3. Double-cliquer sur les icônes pour lancer les apps
-4. Utiliser le start menu (bouton en bas à gauche)
+- **Gestionnaire de tâches** - Surveillance des processus en temps réel
+- **Paramètres** - Configuration complète (profil, thème, fond d'écran)
 
-### Raccourcis Clavier
+## ✨ Fonctionnalités
 
-- `Ctrl+Alt+T` - Ouvrir Terminal
-- `Ctrl+Alt+Delete` - Gestionnaire de tâches
-- `Win/Cmd` - Start Menu
-- Clic droit sur Desktop - Menu contextuel
+### Système d'exploitation complet
+- Gestionnaire de fenêtres (drag, resize, minimize, maximize)
+- Gestionnaire de processus (PIDs, lifecycle)
+- Communication inter-processus (IPC)
+- Système de fichiers virtuel
+- CPU Manager (4 cœurs WebWorker)
+- Stockage persistant (LDSS + localStorage)
 
-### Installation PWA
+### Terminal Avancé
+Plus de 50 commandes disponibles :
+- **Fichiers** : ls, cd, pwd, mkdir, touch, rm, cp, mv, cat, grep, find, tree
+- **Système** : ps, kill, top, sysinfo, uptime, df, free
+- **Réseau** : ping, curl, wget, ifconfig
+- **Performance** : stress, benchmark
 
-1. Chrome : Icône ⊕ dans barre d'adresse → "Installer NEXUS OS"
-2. L'OS s'installe comme une vraie application
-3. Fonctionne offline après installation
+### JavaScript REPL
+- Exécution de code JavaScript en temps réel
+- Chargement de bibliothèques via CDN
+- Templates pour démarrage rapide
+- Support API AI (OpenAI, Anthropic Claude)
 
-## 🔧 Développement
+### Personnalisation
+- Nom d'utilisateur personnalisable
+- Upload de fond d'écran (max 2MB)
+- 3 thèmes (Sombre, Clair, Violet)
+- 4 langues (Français, English, Español, Deutsch)
 
-### Prérequis
+## 🛠️ Technologies
 
-- Navigateur moderne (Chrome 90+, Firefox 88+, Edge 90+)
-- Serveur HTTP (pour développement local)
-
-### Structure d'une Application
-
-```javascript
-// apps/mon-app/manifest.json
-{
-  "id": "mon-app",
-  "name": "Mon Application",
-  "icon": "window",
-  "singleton": false
-}
-
-// apps/mon-app/app.html
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Mon App</title>
-</head>
-<body>
-  <h1>Mon Application</h1>
-  <script>
-    // Communication avec le système
-    window.parent.postMessage({
-      type: 'app:ready',
-      appId: 'mon-app'
-    }, '*');
-  </script>
-</body>
-</html>
-```
-
-### Enregistrer une Nouvelle App
-
-```javascript
-// Dans system/kernel.js
-this.apps.push({
-  id: 'mon-app',
-  name: 'Mon Application',
-  icon: 'window',
-  path: 'apps/mon-app/app.html',
-  singleton: false
-});
-```
-
-## 🌐 API Système
-
-### IPC (Inter-Process Communication)
-
-```javascript
-// Émettre un événement
-window.BrowserOS.ipc.emit('mon-event', { data: 'value' });
-
-// Écouter un événement
-window.BrowserOS.ipc.on('mon-event', (data) => {
-  console.log('Reçu:', data);
-});
-```
-
-### FileSystem
-
-```javascript
-const fs = window.BrowserOS.filesystem;
-
-// Écrire un fichier
-await fs.writeFile('/Documents/test.txt', 'Contenu');
-
-// Lire un fichier
-const content = await fs.readFile('/Documents/test.txt');
-
-// Lister un dossier
-const files = await fs.readdir('/Documents');
-
-// Créer un dossier
-await fs.mkdir('/Documents/nouveau-dossier');
-```
-
-### CPU Manager
-
-```javascript
-const cpu = window.BrowserOS.cpuManager;
-
-// Exécuter un calcul parallèle
-const result = await cpu.execute('fibonacci', 40);
-
-// Statistiques
-const stats = cpu.getStats();
-console.log('Tasks completed:', stats.tasksCompleted);
-```
-
-### Notifications
-
-```javascript
-const notif = window.BrowserOS.notifications;
-
-// Afficher une notification
-notif.success('Opération réussie !');
-notif.error('Une erreur est survenue');
-notif.warning('Attention !');
-notif.info('Information');
-```
+- **Frontend** : HTML5, CSS3, JavaScript (vanilla)
+- **Workers** : 4 WebWorkers pour CPU parallèle
+- **Storage** : LDSS (6 workers distribués) + localStorage fallback
+- **PWA** : Service Worker pour support offline
+- **UI** : Composants Web personnalisés
 
 ## 📊 Performance
 
-### Bundle Size (Gzippé)
+- Boot : < 2 secondes
+- Launch app : < 500ms
+- IPC latency : < 10ms
+- Memory : ~50MB (4 apps ouvertes)
 
-- **Core système** : ~110 KB
-- **Shoelace components** : ~50 KB (lazy-loaded)
-- **Apps** : ~30 KB par app (lazy-loaded)
-- **Total initial** : ~160 KB
+## 🧪 Tests & Debug
 
-### Benchmarks
+Un système de diagnostic complet est disponible :
 
-- **Boot time** : < 1 seconde
-- **Window creation** : < 100ms
-- **File operations** : < 50ms
-- **CPU tasks** : Parallel (nombre de cores)
+```
+http://localhost:3000/logs.html
+```
 
-## 🔐 Sécurité
+- 10 tests automatiques
+- Logs en temps réel
+- Mode debug avec iframe
+- Export des logs en JSON
 
-- **Sandbox apps** : Chaque app dans iframe isolée
-- **No eval()** : Pas de code dynamique
-- **CSP** : Content Security Policy stricte
-- **Local-only** : Données jamais envoyées à un serveur
+## 🗺️ Roadmap v0.2.0
 
-## 🌍 Compatibilité
+- [ ] Plus de commandes Terminal (pipes, redirections)
+- [ ] Syntax highlighting dans Code Editor
+- [ ] Drag & drop dans File Manager
+- [ ] Thèmes personnalisés
+- [ ] Plugin system pour extensions
+- [ ] Multi-user support
 
-| Navigateur | Version | Support |
-|------------|---------|---------|
-| Chrome     | 90+     | ✅ Complet |
-| Edge       | 90+     | ✅ Complet |
-| Firefox    | 88+     | ✅ Complet |
-| Safari     | 14+     | ⚠️ Partiel (pas OPFS) |
+## 🤝 Contribuer
 
-## 🤝 Contribution
-
-Les contributions sont les bienvenues !
+Les contributions sont les bienvenues ! Voici comment :
 
 1. Fork le projet
-2. Créer une branche (`git checkout -b feature/ma-feature`)
-3. Commit (`git commit -m 'Ajout de ma feature'`)
-4. Push (`git push origin feature/ma-feature`)
-5. Ouvrir une Pull Request
+2. Créez une branche (`git checkout -b feature/AmazingFeature`)
+3. Commit vos changements (`git commit -m 'Add AmazingFeature'`)
+4. Push vers la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrez une Pull Request
 
-## 📝 TODO
+Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour plus de détails.
 
-- [ ] Support mobile complet (touch gestures)
-- [ ] App marketplace
-- [ ] Sync cloud (Google Drive, Dropbox)
-- [ ] Plus d'apps (Music Player, Image Editor, Browser)
-- [ ] Thèmes personnalisables
-- [ ] Multi-user support
+## 📝 Développement
+
+### Structure du projet
+
+```
+nexus-browser-os/
+├── index.html              # Point d'entrée avec OS Gateway
+├── logs.html              # Dashboard de diagnostics
+├── manifest.json          # Configuration PWA
+├── sw.js                  # Service Worker
+├── apps/                  # Applications
+│   ├── calculator/
+│   ├── terminal/
+│   ├── notepad/
+│   ├── file-manager/
+│   ├── code-editor/
+│   ├── repl/
+│   ├── docs/
+│   ├── task-manager/
+│   └── settings/
+└── README.md
+```
+
+### Créer une nouvelle app
+
+Voir la [Documentation](http://localhost:3000/index.html) > Développement > Créer une application
 
 ## 📄 License
 
-MIT License - voir [LICENSE](LICENSE)
+MIT License - voir [LICENSE](LICENSE) pour plus de détails
+
+## 👨‍💻 Auteur
+
+**Daouda Abdoul Anzize**  
+Fondateur de Nexus Studio
+
+- GitHub: [@Tryboy869](https://github.com/Tryboy869)
+- Email: nexusstudio100@gmail.com
+
+## 🏢 Nexus Studio
+
+NEXUS OS est développé et maintenu par **Nexus Studio**, un studio de développement innovant spécialisé dans les technologies web avancées.
 
 ## 🙏 Remerciements
 
-- [Shoelace](https://shoelace.style/) - UI Components
-- [Lucide](https://lucide.dev/) - Icons
-- WebWorkers API - Calcul parallèle
-- IndexedDB - Stockage persistant
+- Inspiré par les concepts du kernel Linux
+- LDSS pour le système de stockage distribué
+- Communauté open source
 
-## 📧 Contact
+## 📞 Support
 
-Créé par [Votre Nom](https://github.com/votre-username)
+- 📧 Email: nexusstudio100@gmail.com
+- 🐛 Issues: [GitHub Issues](https://github.com/Tryboy869/nexus-browser-os/issues)
+- 💬 Discussions: [GitHub Discussions](https://github.com/Tryboy869/nexus-browser-os/discussions)
 
 ---
 
-**NEXUS Browser OS** - L'ordinateur dans votre navigateur 🚀
+**NEXUS Browser OS** - Votre ordinateur, partout. 🚀
+
+**Powered by Nexus Studio**  
+Made with ❤️ by Daouda Abdoul Anzize
