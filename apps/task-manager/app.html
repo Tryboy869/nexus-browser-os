@@ -223,14 +223,18 @@
         window.addEventListener('message', (e) => {
           const { type, data } = e.data;
 
+          console.log('[TaskManager] Message received:', type, data);
+
           if (type === 'kernel:config') {
             this.pid = data.pid;
             console.log('[TaskManager] Received config, PID:', this.pid);
             this.requestSystemInfo();
-          } else if (type === 'system:info:response') {
+          } else if (type === 'system:info:request:response' || type === 'system:info:response') {
+            console.log('[TaskManager] System info received:', data);
             this.systemInfo = data;
             this.updateDisplay();
-          } else if (type === 'process:list:response') {
+          } else if (type === 'process:list:request:response' || type === 'process:list:response') {
+            console.log('[TaskManager] Process list received:', data);
             this.processes = data || [];
             this.updateProcessTable();
           }
@@ -261,6 +265,8 @@
           type: 'process:list:request',
           pid: this.pid
         }, '*');
+
+        console.log('[TaskManager] Requesting system info and process list');
       }
 
       updateDisplay() {
