@@ -105,11 +105,25 @@
       display: block;
     }
 
+    /* Thèmes dynamiques */
+    #desktop.theme-dark {
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+
+    #desktop.theme-light {
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+
+    #desktop.theme-purple {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
     #desktop-wallpaper {
       position: absolute;
       inset: 0;
       background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080"><defs><linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:%23667eea;stop-opacity:0.2"/><stop offset="100%" style="stop-color:%23764ba2;stop-opacity:0.2"/></linearGradient></defs><rect width="1920" height="1080" fill="url(%23grad)"/></svg>');
       background-size: cover;
+      background-position: center;
       pointer-events: none;
     }
 
@@ -249,6 +263,11 @@
       color: #9090a8;
     }
 
+    #taskbar-username {
+      font-weight: 500;
+      color: #667eea;
+    }
+
     /* START MENU */
     #start-menu {
       position: absolute;
@@ -342,12 +361,13 @@
   <div id="desktop">
     <div id="desktop-wallpaper"></div>
     <div id="windows-container"></div>
-    
+
     <!-- TASKBAR -->
     <div id="taskbar">
       <button class="taskbar-start" id="start-button">Start</button>
       <div class="taskbar-apps" id="taskbar-apps"></div>
       <div class="taskbar-system">
+        <span id="taskbar-username"></span>
         <span id="system-time">00:00</span>
       </div>
     </div>
@@ -382,12 +402,12 @@
     // ═══════════════════════════════════════════════
     // CONSOLE INTERCEPTOR (for logs.html)
     // ═══════════════════════════════════════════════
-    
+
     (function() {
       const originalLog = console.log;
       const originalError = console.error;
       const originalWarn = console.warn;
-      
+
       function sendToParent(level, args) {
         if (window.parent !== window) {
           try {
@@ -402,34 +422,34 @@
           }
         }
       }
-      
+
       console.log = function(...args) {
         originalLog.apply(console, args);
         sendToParent('INFO', args);
       };
-      
+
       console.error = function(...args) {
         originalError.apply(console, args);
         sendToParent('ERROR', args);
       };
-      
+
       console.warn = function(...args) {
         originalWarn.apply(console, args);
         sendToParent('WARN', args);
       };
-      
+
       // Catch unhandled errors
       window.addEventListener('error', (e) => {
         console.error('[UNHANDLED ERROR]', e.message, e.filename, e.lineno, e.colno);
         sendToParent('ERROR', [e.message, { filename: e.filename, line: e.lineno, col: e.colno }]);
       });
-      
+
       window.addEventListener('unhandledrejection', (e) => {
         console.error('[UNHANDLED PROMISE REJECTION]', e.reason);
         sendToParent('ERROR', ['Promise rejection:', e.reason]);
       });
     })();
-    
+
     console.log('[SYSTEM] NEXUS OS loading...');
     console.log('[SYSTEM] Console interceptor active');
 
@@ -444,7 +464,7 @@
         this.queue = [];
         this.nextTaskId = 1;
         this.pendingTasks = new Map();
-        
+
         this.initWorkers();
       }
 
@@ -600,7 +620,7 @@
         if (!availableCore) return;
 
         const { taskId, task, params } = this.queue.shift();
-        
+
         availableCore.busy = true;
         availableCore.worker.postMessage({ taskId, task, params });
 
@@ -775,9 +795,9 @@
         // Drag
         titlebar.addEventListener('mousedown', (e) => {
           if (e.target.closest('.window-controls')) return;
-          
+
           this.focus(pid);
-          
+
           this.dragState = {
             pid,
             startX: e.clientX,
@@ -896,7 +916,7 @@
         this.db = null;
         this.connected = false;
         this.autoSaveInterval = null;
-        
+
         // Configuration LDSS - REMPLACER PAR VOTRE TOKEN
         this.config = {
           token: 'demo_token', // ⚠️ REMPLACER PAR VOTRE TOKEN LDSS
@@ -908,18 +928,18 @@
       async init() {
         try {
           this.gateway.logger.info('STORAGE', { message: 'Initializing LDSS...' });
-          
+
           this.db = new LDSS(this.config);
           this.connected = true;
-          
+
           this.gateway.logger.info('STORAGE', { message: 'LDSS connected successfully' });
-          
+
           // Charger état sauvegardé
           await this.restoreSystemState();
-          
+
           // Activer auto-save toutes les 30 secondes
           this.startAutoSave();
-          
+
         } catch (error) {
           this.gateway.logger.error('STORAGE', { 
             message: 'LDSS initialization failed', 
@@ -939,13 +959,13 @@
             localStorage.setItem(key, JSON.stringify(value));
             return;
           }
-          
+
           await this.db.store('nexus_storage', { 
             key, 
             value,
             timestamp: Date.now()
           });
-          
+
           this.gateway.logger.info('STORAGE', { action: 'set', key });
         } catch (error) {
           this.gateway.logger.error('STORAGE', { 
@@ -965,7 +985,7 @@
             const item = localStorage.getItem(key);
             return item ? JSON.parse(item) : null;
           }
-          
+
           const result = await this.db.get('nexus_storage', key);
           return result?.value;
         } catch (error) {
@@ -998,7 +1018,7 @@
           };
 
           await this.set('system_state', state);
-          
+
           this.gateway.logger.info('STORAGE', { 
             action: 'system_state_saved', 
             appsCount: state.apps.length 
@@ -1014,7 +1034,7 @@
       async restoreSystemState() {
         try {
           const state = await this.get('system_state');
-          
+
           if (!state) {
             this.gateway.logger.info('STORAGE', { message: 'No saved state found' });
             return;
@@ -1024,13 +1044,6 @@
             message: 'Restoring system state...', 
             appsCount: state.apps?.length || 0 
           });
-
-          // Restaurer apps (optionnel - peut être commenté si pas désiré)
-          // for (const appState of state.apps || []) {
-          //   if (appState.state === 'ready') {
-          //     await this.gateway.launchApp(appState.name);
-          //   }
-          // }
 
           this.gateway.logger.info('STORAGE', { message: 'System state restored' });
         } catch (error) {
@@ -1120,10 +1133,10 @@
         window.addEventListener('message', (e) => {
           try {
             const { type, pid, data } = e.data;
-            
+
             // Si pas de PID fourni, essayer de le trouver via e.source
             let actualPid = pid;
-            
+
             if (!actualPid || actualPid === null) {
               // Chercher l'app par son iframe source
               for (const [appPid, app] of this.apps.entries()) {
@@ -1137,7 +1150,7 @@
                 }
               }
             }
-            
+
             this.routeMessage(type, actualPid, data, e.source);
           } catch (error) {
             this.logger.error('IPC', { 
@@ -1172,11 +1185,12 @@
           'process:kill': (data) => this.closeApp(data.targetPid),
           'cpu:execute': (data) => this.cpuManager.executeTask(data.task, data.params),
           'cpu:batch': (data) => this.cpuManager.executeBatch(data.tasks),
-          'cpu:stats': () => this.cpuManager.getStats()
+          'cpu:stats': () => this.cpuManager.getStats(),
+          'settings:apply': (data) => this.applySettings(data)
         };
 
         const handler = routes[type];
-        
+
         if (!handler) {
           this.logger.warn('IPC', { 
             action: 'unknown_message_type', 
@@ -1223,6 +1237,73 @@
         }
       }
 
+      // ═══════════════════════════════════════════════
+      // NOUVEAU: APPLIQUER LES SETTINGS AU SYSTÈME
+      // ═══════════════════════════════════════════════
+      applySettings(settings) {
+        this.logger.info('SYSTEM', { action: 'applying_settings', settings });
+
+        const desktop = document.getElementById('desktop');
+        const wallpaper = document.getElementById('desktop-wallpaper');
+        const usernameEl = document.getElementById('taskbar-username');
+
+        // Appliquer le thème
+        if (settings.theme) {
+          desktop.className = 'active';
+          desktop.classList.add(`theme-${settings.theme}`);
+          this.logger.info('SYSTEM', { action: 'theme_applied', theme: settings.theme });
+        }
+
+        // Appliquer le fond d'écran
+        if (settings.wallpaper) {
+          wallpaper.style.backgroundImage = `url(${settings.wallpaper})`;
+          this.logger.info('SYSTEM', { action: 'wallpaper_applied' });
+        } else {
+          wallpaper.style.backgroundImage = '';
+        }
+
+        // Afficher le nom d'utilisateur
+        if (settings.username) {
+          usernameEl.textContent = settings.username;
+          this.logger.info('SYSTEM', { action: 'username_displayed', username: settings.username });
+        }
+
+        // Sauvegarder les settings
+        this.storage.set('system_settings', settings);
+      }
+
+      // ═══════════════════════════════════════════════
+      // NOUVEAU: CHARGER ET APPLIQUER LES SETTINGS AU BOOT
+      // ═══════════════════════════════════════════════
+      async loadAndApplySettings() {
+        try {
+          this.logger.info('SYSTEM', { message: 'Loading system settings...' });
+
+          const settings = await this.storage.get('system_settings');
+
+          if (settings) {
+            this.logger.info('SYSTEM', { message: 'Settings found, applying...', settings });
+            this.applySettings(settings);
+          } else {
+            this.logger.info('SYSTEM', { message: 'No settings found, using defaults' });
+            
+            // Appliquer les settings par défaut
+            const defaultSettings = {
+              theme: 'dark',
+              username: 'Utilisateur',
+              wallpaper: null
+            };
+            
+            this.applySettings(defaultSettings);
+          }
+        } catch (error) {
+          this.logger.error('SYSTEM', { 
+            action: 'load_settings_failed', 
+            error: error.message 
+          });
+        }
+      }
+
       async launchApp(appName, options = {}) {
         const pid = this.nextPid++;
 
@@ -1265,11 +1346,7 @@
 
         } catch (error) {
           this.logger.error('APP', { action: 'launch_failed', appName, pid, error: error.message });
-          
-          // NE PAS fermer l'app automatiquement - elle peut fonctionner quand même
-          // L'utilisateur peut la fermer manuellement si besoin
-          
-          return pid; // Retourner le PID quand même
+          return pid;
         }
       }
 
@@ -1280,7 +1357,7 @@
 
           const checkReady = () => {
             const app = this.apps.get(pid);
-            
+
             if (!app) {
               this.logger.error('APP', { action: 'wait_ready_failed', pid, reason: 'app not found' });
               reject(new Error(`App ${pid} not found`));
@@ -1294,7 +1371,7 @@
             }
 
             attempts++;
-            
+
             if (attempts >= maxAttempts) {
               this.logger.warn('APP', { 
                 action: 'wait_ready_timeout', 
@@ -1303,7 +1380,6 @@
                 currentState: app.state,
                 message: 'App did not send app:ready in time - continuing anyway'
               });
-              // NE PAS rejeter, juste résoudre quand même
               resolve();
               return;
             }
@@ -1323,7 +1399,7 @@
         });
 
         const app = this.apps.get(pid);
-        
+
         if (!app) {
           this.logger.error('IPC', { 
             action: 'app_ready_failed', 
@@ -1437,6 +1513,9 @@
 
         await this.storage.init();
 
+        // ✅ NOUVEAU: Charger et appliquer les settings au boot
+        await this.loadAndApplySettings();
+
         this.logger.info('SYSTEM', { message: 'NEXUS OS ready' });
       }
     }
@@ -1444,7 +1523,8 @@
     // ═══════════════════════════════════════════════
     // BOOT SEQUENCE
     // ═══════════════════════════════════════════════
-    
+
+    // ✅ FIX 1: AVAILABLE_APPS COMPLET (9 apps)
     const AVAILABLE_APPS = [
       { name: 'calculator', title: 'Calculatrice', desc: 'Calculatrice de base' },
       { name: 'terminal', title: 'Terminal', desc: 'Interface de ligne de commande' },
@@ -1452,14 +1532,16 @@
       { name: 'file-manager', title: 'Gestionnaire de fichiers', desc: 'Parcourir les fichiers' },
       { name: 'code-editor', title: 'Éditeur de code', desc: 'Éditeur avec coloration syntaxique' },
       { name: 'repl', title: 'JavaScript REPL', desc: 'Exécuter du code JavaScript' },
-      { name: 'docs', title: 'Documentation', desc: 'Guide du système' }
+      { name: 'docs', title: 'Documentation', desc: 'Guide du système' },
+      { name: 'task-manager', title: 'Gestionnaire de tâches', desc: 'Monitorer les processus' },
+      { name: 'settings', title: 'Paramètres', desc: 'Configurer le système' }
     ];
 
     let gateway;
 
     async function bootSequence() {
       console.log('[BOOT] Boot sequence START');
-      
+
       try {
         const powerBtn = document.getElementById('power-button');
         const bootLogs = document.getElementById('boot-logs');
@@ -1487,6 +1569,7 @@
           '[KERNEL] System modules loaded',
           '[INIT] Starting desktop environment...',
           '[INIT] Loading applications registry...',
+          '[INIT] Applying system settings...',
           '[INIT] System ready'
         ];
 
@@ -1504,10 +1587,10 @@
 
         console.log('[BOOT] Creating OS Gateway...');
         gateway = new OSGateway();
-        
+
         console.log('[BOOT] Calling gateway.boot()...');
         await gateway.boot();
-        
+
         console.log('[BOOT] Gateway booted successfully');
 
         bootScreen.classList.add('hidden');
@@ -1515,7 +1598,7 @@
 
         console.log('[BOOT] Desktop shown, initializing desktop...');
         initDesktop();
-        
+
         console.log('[BOOT] Boot sequence COMPLETE');
 
       } catch (error) {
@@ -1551,7 +1634,8 @@
       const appsList = document.getElementById('start-apps-list');
       appsList.innerHTML = '';
 
-      AVAILABLE_APPS.forEach(app => {
+      // ✅ FIX: Afficher seulement les 7 premières apps (sans task-manager et settings)
+      AVAILABLE_APPS.slice(0, 7).forEach(app => {
         const btn = document.createElement('button');
         btn.className = 'start-app';
         btn.innerHTML = `
@@ -1571,6 +1655,7 @@
         appsList.appendChild(btn);
       });
 
+      // ✅ Les apps système (task-manager et settings) sont déjà dans le HTML
       const systemApps = document.querySelectorAll('#start-menu .start-app[data-app]');
       systemApps.forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -1593,28 +1678,24 @@
     }
 
     // ═══════════════════════════════════════════════
-    // ENTRY POINT
+    // POWER BUTTON
     // ═══════════════════════════════════════════════
 
-    // ═══════════════════════════════════════════════
-    // POWER BUTTON - CRITICAL FIX
-    // ═══════════════════════════════════════════════
-    
     function initPowerButton() {
       const powerBtn = document.getElementById('power-button');
-      
+
       if (!powerBtn) {
         console.error('[CRITICAL] Power button not found in DOM!');
         alert('CRITICAL ERROR: Power button not found');
         return;
       }
-      
+
       console.log('[INIT] Power button found, attaching listener...');
-      
+
       powerBtn.addEventListener('click', () => {
         console.log('[DEBUG] Power button clicked');
         console.log('[DEBUG] Starting boot sequence...');
-        
+
         try {
           bootSequence().catch(error => {
             console.error('[DEBUG] Boot failed:', error);
@@ -1625,10 +1706,10 @@
           alert('Boot error: ' + error.message);
         }
       });
-      
+
       console.log('[INIT] Power button listener attached successfully');
     }
-    
+
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', initPowerButton);
