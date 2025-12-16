@@ -290,12 +290,25 @@
       opacity: 1;
       transform: translateY(0);
     }
+
+    input[type="file"] {
+      display: block;
+      margin-top: 10px;
+      color: #e8e8f0;
+    }
+
+    .wallpaper-preview {
+      margin-top: 15px;
+      max-width: 300px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
   </style>
 </head>
 <body>
   <div class="sidebar">
     <div class="sidebar-title">Paramètres</div>
-    
+
     <div class="sidebar-section">
       <div class="sidebar-section-title">Général</div>
       <div class="sidebar-item active" data-page="appearance">Apparence</div>
@@ -349,12 +362,13 @@
 
         window.addEventListener('message', (e) => {
           if (e.data.type === 'kernel:config') {
-            this.pid = e.data.pid;
+            this.pid = e.data.data.pid;
             console.log('[Settings] Reçu config, PID:', this.pid);
           } else if (e.data.type === 'storage:get:response') {
-            if (e.data.data) {
+            if (e.data.success && e.data.data) {
               this.settings = { ...this.settings, ...e.data.data };
               this.renderPage(this.currentPage);
+              console.log('[Settings] Settings chargés depuis storage:', this.settings);
             }
           }
         });
@@ -373,9 +387,8 @@
 
       renderPage(page) {
         const content = document.getElementById('content');
-        
+
         const pages = {
-          profile: this.renderProfile.bind(this),
           appearance: this.renderAppearance.bind(this),
           language: this.renderLanguage.bind(this),
           notifications: this.renderNotifications.bind(this),
@@ -391,49 +404,23 @@
         }
       }
 
-      renderProfile() {
-        return `
-          <div class="content-header">
-            <div class="content-title">Profil utilisateur</div>
-            <div class="content-description">Personnalisez votre profil</div>
-          </div>
-
-          <div class="setting-group">
-            <div class="setting-item">
-              <div class="setting-label">
-                <div class="setting-title">Nom d'utilisateur</div>
-                <div class="setting-desc">Votre nom affiché dans le système</div>
-              </div>
-              <div class="setting-control">
-                <input type="text" id="username-input" value="${this.settings.username}" placeholder="Votre nom">
-              </div>
-            </div>
-          </div>
-
-          <div class="setting-group">
-            <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
-              <div class="setting-label">
-                <div class="setting-title">Fond d'écran</div>
-                <div class="setting-desc">Personnalisez votre bureau (max 2MB)</div>
-              </div>
-              <div style="margin-top: 15px; width: 100%;">
-                <input type="file" id="wallpaper-input" accept="image/*" style="display: none;">
-                <button id="upload-wallpaper" style="margin-right: 10px;">Choisir une image</button>
-                ${this.settings.wallpaper ? '<button id="remove-wallpaper" class="secondary">Supprimer</button>' : ''}
-                ${this.settings.wallpaper ? `<div style="margin-top: 15px;"><img src="${this.settings.wallpaper}" style="max-width: 300px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);"></div>` : ''}
-              </div>
-            </div>
-          </div>
-
-          <button id="save-profile">Enregistrer le profil</button>
-        `;
-      }
-
       renderAppearance() {
         return `
           <div class="content-header">
             <div class="content-title">Apparence</div>
             <div class="content-description">Personnalisez l'apparence du système</div>
+          </div>
+
+          <div class="setting-group">
+            <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
+              <div class="setting-label">
+                <div class="setting-title">Nom d'utilisateur</div>
+                <div class="setting-desc">Votre nom affiché dans la taskbar</div>
+              </div>
+              <div style="margin-top: 15px; width: 100%;">
+                <input type="text" id="username-input" value="${this.settings.username}" placeholder="Votre nom" style="max-width: 300px;">
+              </div>
+            </div>
           </div>
 
           <div class="setting-group">
@@ -457,18 +444,24 @@
           </div>
 
           <div class="setting-group">
-            <div class="setting-item">
+            <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
               <div class="setting-label">
-                <div class="setting-title">Couleur d'accentuation</div>
-                <div class="setting-desc">Couleur principale de l'interface</div>
+                <div class="setting-title">Fond d'écran personnalisé</div>
+                <div class="setting-desc">Choisissez une image pour votre bureau (max 2MB)</div>
               </div>
-              <div class="setting-control">
-                <input type="color" class="color-picker" id="accent-color" value="#667eea">
+              <div style="margin-top: 15px; width: 100%;">
+                <input type="file" id="wallpaper-input" accept="image/*">
+                ${this.settings.wallpaper ? `
+                  <div style="margin-top: 15px;">
+                    <img src="${this.settings.wallpaper}" class="wallpaper-preview">
+                    <button id="remove-wallpaper" class="secondary" style="margin-top: 10px;">Supprimer le fond d'écran</button>
+                  </div>
+                ` : ''}
               </div>
             </div>
           </div>
 
-          <button id="save-appearance">Enregistrer les modifications</button>
+          <button id="save-appearance">Appliquer les modifications</button>
         `;
       }
 
@@ -657,14 +650,7 @@
       }
 
       attachPageListeners(page) {
-        // Profile
-        const uploadBtn = document.getElementById('upload-wallpaper');
-        if (uploadBtn) {
-          uploadBtn.addEventListener('click', () => {
-            document.getElementById('wallpaper-input').click();
-          });
-        }
-
+        // Upload wallpaper
         const wallpaperInput = document.getElementById('wallpaper-input');
         if (wallpaperInput) {
           wallpaperInput.addEventListener('change', (e) => {
@@ -678,7 +664,7 @@
               const reader = new FileReader();
               reader.onload = (e) => {
                 this.settings.wallpaper = e.target.result;
-                this.renderPage('profile');
+                this.renderPage('appearance');
                 this.showNotification('Image chargée');
               };
               reader.readAsDataURL(file);
@@ -690,8 +676,8 @@
         if (removeWallpaperBtn) {
           removeWallpaperBtn.addEventListener('click', () => {
             this.settings.wallpaper = null;
-            this.renderPage('profile');
-            this.saveSettings('Fond d\'écran supprimé');
+            this.renderPage('appearance');
+            this.saveAndApplySettings('Fond d\'écran supprimé');
           });
         }
 
@@ -718,14 +704,13 @@
 
         // Boutons
         const saveButtons = {
-          'save-profile': () => {
+          'save-appearance': () => {
             this.settings.username = document.getElementById('username-input').value;
-            this.saveSettings('Profil enregistré');
+            this.saveAndApplySettings('Apparence appliquée');
           },
-          'save-appearance': () => this.saveSettings('Apparence enregistrée'),
           'save-language': () => {
             this.settings.language = document.getElementById('language-select').value;
-            this.saveSettings('Langue modifiée');
+            this.saveAndApplySettings('Langue modifiée');
           },
           'save-performance': () => {
             this.settings.cpuCores = parseInt(document.getElementById('cpu-cores').value);
@@ -742,6 +727,29 @@
           const btn = document.getElementById(id);
           if (btn) btn.addEventListener('click', handler);
         });
+      }
+
+      // ✅ NOUVEAU: Sauvegarder ET appliquer les settings au système
+      saveAndApplySettings(message = 'Paramètres appliqués') {
+        // Sauvegarder dans storage
+        window.parent.postMessage({
+          type: 'storage:set',
+          pid: this.pid,
+          data: {
+            key: 'system_settings',
+            value: this.settings
+          }
+        }, '*');
+
+        // ✅ NOUVEAU: Demander au système d'appliquer immédiatement
+        window.parent.postMessage({
+          type: 'settings:apply',
+          pid: this.pid,
+          data: this.settings
+        }, '*');
+
+        this.showNotification(message);
+        console.log('[Settings] Paramètres sauvegardés et appliqués:', this.settings);
       }
 
       saveSettings(message = 'Paramètres enregistrés') {
@@ -777,7 +785,7 @@
           username: 'Utilisateur',
           wallpaper: null
         };
-        this.saveSettings('Données effacées');
+        this.saveAndApplySettings('Données effacées');
         this.renderPage(this.currentPage);
       }
 
