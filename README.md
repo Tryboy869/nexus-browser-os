@@ -22,7 +22,7 @@ Un véritable système d'exploitation qui tourne entièrement dans votre navigat
 
 ### En ligne (recommandé)
 
-Ouvrez simplement : [nexus-os.vercel.app](https://nexus-os.vercel.app) (remplacer par votre URL)
+Ouvrez simplement : [nexus-os.vercel.app](https://nexus-browser-os.vercel.app/) (remplacer par votre URL)
 
 ### En local
 
