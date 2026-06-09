@@ -394,8 +394,8 @@
     </div>
   </div>
 
-  <!-- LDSS SDK -->
-  <script src="https://ldss-e9kz.onrender.com/ldss-client.js"></script>
+  <!-- LDSS SDK (local) -->
+  <script src="ldss-client.js"></script>
 
   <!-- SYSTEM MODULES -->
   <script type="module">
@@ -438,7 +438,6 @@
         sendToParent('WARN', args);
       };
 
-      // Catch unhandled errors
       window.addEventListener('error', (e) => {
         console.error('[UNHANDLED ERROR]', e.message, e.filename, e.lineno, e.colno);
         sendToParent('ERROR', [e.message, { filename: e.filename, line: e.lineno, col: e.colno }]);
@@ -514,7 +513,6 @@
                   );
                   break;
                 case 'compute':
-                  // Generic computation
                   result = eval(params.expression);
                   break;
                 default:
@@ -630,7 +628,6 @@
           coreId: availableCore.id 
         });
 
-        // Continue processing queue
         if (this.queue.length > 0) {
           setTimeout(() => this.processQueue(), 0);
         }
@@ -774,25 +771,21 @@
         const minimizeBtn = win.querySelector('.minimize');
         const maximizeBtn = win.querySelector('.maximize');
 
-        // Close
         closeBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           this.gateway.closeApp(pid);
         });
 
-        // Minimize
         minimizeBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           this.minimize(pid);
         });
 
-        // Maximize
         maximizeBtn.addEventListener('click', (e) => {
           e.stopPropagation();
           this.maximize(pid);
         });
 
-        // Drag
         titlebar.addEventListener('mousedown', (e) => {
           if (e.target.closest('.window-controls')) return;
 
@@ -807,7 +800,6 @@
           };
         });
 
-        // Focus on click
         win.addEventListener('mousedown', () => {
           this.focus(pid);
         });
@@ -917,9 +909,8 @@
         this.connected = false;
         this.autoSaveInterval = null;
 
-        // Configuration LDSS - REMPLACER PAR VOTRE TOKEN
         this.config = {
-          token: 'demo_token', // ⚠️ REMPLACER PAR VOTRE TOKEN LDSS
+          token: 'demo_token',
           projectName: 'NexusOS',
           apiUrl: 'https://ldss-e9kz.onrender.com'
         };
@@ -934,10 +925,7 @@
 
           this.gateway.logger.info('STORAGE', { message: 'LDSS connected successfully' });
 
-          // Charger état sauvegardé
           await this.restoreSystemState();
-
-          // Activer auto-save toutes les 30 secondes
           this.startAutoSave();
 
         } catch (error) {
@@ -955,7 +943,6 @@
             this.gateway.logger.warn('STORAGE', { 
               message: 'LDSS not connected, using fallback' 
             });
-            // Fallback: localStorage
             localStorage.setItem(key, JSON.stringify(value));
             return;
           }
@@ -973,7 +960,6 @@
             key, 
             error: error.message 
           });
-          // Fallback
           localStorage.setItem(key, JSON.stringify(value));
         }
       }
@@ -981,7 +967,6 @@
       async get(key) {
         try {
           if (!this.connected || !this.db) {
-            // Fallback: localStorage
             const item = localStorage.getItem(key);
             return item ? JSON.parse(item) : null;
           }
@@ -994,7 +979,6 @@
             key, 
             error: error.message 
           });
-          // Fallback
           const item = localStorage.getItem(key);
           return item ? JSON.parse(item) : null;
         }
@@ -1055,7 +1039,6 @@
       }
 
       startAutoSave() {
-        // Auto-save toutes les 30 secondes
         this.autoSaveInterval = setInterval(() => {
           this.saveSystemState();
         }, 30000);
@@ -1134,11 +1117,9 @@
           try {
             const { type, pid, data } = e.data;
 
-            // Si pas de PID fourni, essayer de le trouver via e.source
             let actualPid = pid;
 
             if (!actualPid || actualPid === null) {
-              // Chercher l'app par son iframe source
               for (const [appPid, app] of this.apps.entries()) {
                 if (app.iframe && app.iframe.contentWindow === e.source) {
                   actualPid = appPid;
@@ -1237,9 +1218,6 @@
         }
       }
 
-      // ═══════════════════════════════════════════════
-      // NOUVEAU: APPLIQUER LES SETTINGS AU SYSTÈME
-      // ═══════════════════════════════════════════════
       applySettings(settings) {
         this.logger.info('SYSTEM', { action: 'applying_settings', settings });
 
@@ -1247,14 +1225,12 @@
         const wallpaper = document.getElementById('desktop-wallpaper');
         const usernameEl = document.getElementById('taskbar-username');
 
-        // Appliquer le thème
         if (settings.theme) {
           desktop.className = 'active';
           desktop.classList.add(`theme-${settings.theme}`);
           this.logger.info('SYSTEM', { action: 'theme_applied', theme: settings.theme });
         }
 
-        // Appliquer le fond d'écran
         if (settings.wallpaper) {
           wallpaper.style.backgroundImage = `url(${settings.wallpaper})`;
           this.logger.info('SYSTEM', { action: 'wallpaper_applied' });
@@ -1262,19 +1238,14 @@
           wallpaper.style.backgroundImage = '';
         }
 
-        // Afficher le nom d'utilisateur
         if (settings.username) {
           usernameEl.textContent = settings.username;
           this.logger.info('SYSTEM', { action: 'username_displayed', username: settings.username });
         }
 
-        // Sauvegarder les settings
         this.storage.set('system_settings', settings);
       }
 
-      // ═══════════════════════════════════════════════
-      // NOUVEAU: CHARGER ET APPLIQUER LES SETTINGS AU BOOT
-      // ═══════════════════════════════════════════════
       async loadAndApplySettings() {
         try {
           this.logger.info('SYSTEM', { message: 'Loading system settings...' });
@@ -1287,7 +1258,6 @@
           } else {
             this.logger.info('SYSTEM', { message: 'No settings found, using defaults' });
             
-            // Appliquer les settings par défaut
             const defaultSettings = {
               theme: 'dark',
               username: 'Utilisateur',
@@ -1337,7 +1307,6 @@
 
           this.updateTaskbar();
 
-          // Attendre que l'app soit ready (10s max)
           await this.waitForAppReady(pid, 10000);
 
           this.logger.info('APP', { action: 'launch_success', appName, pid });
@@ -1412,7 +1381,6 @@
         app.state = 'ready';
         app.source = source;
 
-        // Envoyer config à l'app
         if (source) {
           source.postMessage({
             type: 'kernel:config',
@@ -1513,7 +1481,6 @@
 
         await this.storage.init();
 
-        // ✅ NOUVEAU: Charger et appliquer les settings au boot
         await this.loadAndApplySettings();
 
         this.logger.info('SYSTEM', { message: 'NEXUS OS ready' });
@@ -1524,7 +1491,6 @@
     // BOOT SEQUENCE
     // ═══════════════════════════════════════════════
 
-    // ✅ FIX 1: AVAILABLE_APPS COMPLET (9 apps)
     const AVAILABLE_APPS = [
       { name: 'calculator', title: 'Calculatrice', desc: 'Calculatrice de base' },
       { name: 'terminal', title: 'Terminal', desc: 'Interface de ligne de commande' },
@@ -1634,7 +1600,6 @@
       const appsList = document.getElementById('start-apps-list');
       appsList.innerHTML = '';
 
-      // ✅ FIX: Afficher seulement les 7 premières apps (sans task-manager et settings)
       AVAILABLE_APPS.slice(0, 7).forEach(app => {
         const btn = document.createElement('button');
         btn.className = 'start-app';
@@ -1655,7 +1620,6 @@
         appsList.appendChild(btn);
       });
 
-      // ✅ Les apps système (task-manager et settings) sont déjà dans le HTML
       const systemApps = document.querySelectorAll('#start-menu .start-app[data-app]');
       systemApps.forEach(btn => {
         btn.addEventListener('click', async () => {
