@@ -1,0 +1,24 @@
+{
+  "rewrites": [
+    {
+      "source": "/apps/:path*",
+      "destination": "/apps/:path*"
+    },
+    {
+      "source": "/ldss-client.js",
+      "destination": "/ldss-client.js"
+    },
+    {
+      "source": "/sw.js",
+      "destination": "/sw.js"
+    },
+    {
+      "source": "/manifest.json",
+      "destination": "/manifest.json"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
